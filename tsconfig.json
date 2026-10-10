@@ -8,6 +8,7 @@
     "strict": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
@@ -15,5 +16,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src", "cli", "tests", "vite.config.ts"]
+  "include": ["src", "cli", "tests", "tools", "vite.config.ts"]
 }
