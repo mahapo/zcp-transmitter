@@ -1,0 +1,7 @@
+node_modules/
+dist/
+output/
+.DS_Store
+
+# The catalog's IQ files add up to 1.4 GB; regenerate them with generate_combinations.py.
+Combination_Catalog/**/*.iq

@@ -1,0 +1,487 @@
+/* The look follows the original desktop app: blue section bars, two-part panels, big state buttons. */
+:root {
+  --ink: #111;
+  --muted: #777;
+  --line: #9a9a9a;
+  --blue: #2a6ebb;
+  --green: #2ea05a;
+  --red: #c0392b;
+  --mono: "DejaVu Sans Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-family: "Noto Sans", "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  color: var(--ink);
+  background: #e9e9e9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 12px;
+}
+
+.app {
+  max-width: 760px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--line);
+}
+
+/* --- section bars and shared pieces --- */
+
+.bar {
+  margin: 0;
+  padding: 7px 0 6px;
+  font: bold 1.3rem var(--mono);
+  text-align: center;
+  color: #0b1a33;
+  background: linear-gradient(#2f66c0, #86a9df 45%, #f2f6fc);
+  border-top: 1px solid #1f4c99;
+  border-bottom: 1px solid var(--line);
+}
+
+h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.readout {
+  font: 0.85rem var(--mono);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.good {
+  color: #1e9b4b;
+}
+
+.bad {
+  color: #d9534f;
+}
+
+.hint {
+  margin: 4px 0 8px;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.notice {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+button,
+select,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+.big {
+  display: block;
+  width: 92%;
+  margin: 10px auto 4px;
+  padding: 13px 0;
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #fff;
+  border: 1px solid rgb(0 0 0 / 0.35);
+  border-radius: 2px;
+}
+
+.big.go {
+  background: linear-gradient(#37ad65, #278f4d);
+}
+
+.big.idle {
+  color: #9b9b9b;
+  background: #4a4a4a;
+}
+
+.big.air {
+  background: linear-gradient(#d64a3b, #a93226);
+}
+
+.big:disabled {
+  opacity: 0.6;
+}
+
+.small {
+  padding: 3px 10px;
+  font-size: 0.85rem;
+  background: #f4f4f4;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.link {
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--blue);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+}
+
+.links {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin: 4px 4% 0;
+}
+
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.check input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+}
+
+/* --- panels made of two halves with a switch between them --- */
+
+.halves {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.half {
+  min-width: 0;
+  padding: 10px 14px 14px;
+}
+
+/* Keep clear of the switch, which sits on the dividing line. */
+.half:first-child {
+  padding-right: 28px;
+}
+
+.half + .switch + .half {
+  padding-left: 28px;
+  border-left: 1px solid var(--line);
+}
+
+.half.inactive {
+  background: linear-gradient(90deg, #a3a3a3, #c4c4c4);
+}
+
+.half.inactive > * {
+  opacity: 0.55;
+}
+
+.half-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.switch {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font: bold 0.9rem var(--mono);
+  color: #14508f;
+  background: radial-gradient(circle at 35% 30%, #f1f8ff, #8fc1e8);
+  border: 1px solid #6fa3cf;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.3);
+  transform: translate(-50%, -50%);
+}
+
+/* --- Audio Input --- */
+
+.scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font: 0.72rem var(--mono);
+  color: var(--muted);
+}
+
+.voice {
+  margin-left: auto;
+  font-size: 0.8rem;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 8px;
+  font-size: 1.1rem;
+  resize: vertical;
+  border: 1px solid var(--line);
+}
+
+/* --- meters --- */
+
+.meter {
+  display: flex;
+  gap: 2px;
+  height: 22px;
+  padding: 0;
+  background: #fff;
+}
+
+.meter i {
+  flex: 1;
+  background: #000;
+}
+
+.meter i.lit.green {
+  background: #36a85c;
+}
+
+.meter i.lit.yellow {
+  background: #edb92e;
+}
+
+.meter i.lit.red {
+  background: #d9463a;
+}
+
+.meter.vertical {
+  flex-direction: column-reverse;
+  width: 30px;
+  height: 230px;
+}
+
+/* --- Signal Processing --- */
+
+.processing {
+  display: grid;
+  grid-template-columns: 1fr auto;
+}
+
+.controls {
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.slider {
+  display: grid;
+  grid-template-columns: 6.2em 1fr 5.5em;
+  gap: 12px;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.slider-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.slider .readout {
+  font-size: 0.95rem;
+  color: var(--ink);
+  text-align: right;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: #3b86d6;
+}
+
+.caption {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 0 6px;
+}
+
+.caption .links {
+  margin: 0;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr;
+  gap: 8px;
+  padding: 8px 12px 12px;
+  background: #f1f1f1;
+  border: 1px solid #cfcfcf;
+}
+
+fieldset {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+legend {
+  padding: 0 0 4px;
+  font-weight: bold;
+  color: var(--blue);
+}
+
+.duty {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--line);
+}
+
+.duty-meters {
+  display: flex;
+  flex: 1;
+}
+
+.duty-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  padding: 8px 14px 14px;
+  font: bold 0.95rem var(--mono);
+}
+
+.duty-meter + .duty-meter {
+  border-left: 1px solid var(--line);
+}
+
+.duty-meter output {
+  margin-bottom: 14px;
+}
+
+.duty-caption {
+  padding: 8px 0;
+  font: bold 1rem var(--mono);
+  border-top: 1px solid var(--line);
+}
+
+/* --- Output --- */
+
+.fields {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.fields label {
+  display: grid;
+  grid-template-columns: 7.5em 1fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.fields select,
+.fields input[type="number"] {
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+}
+
+.message {
+  min-height: 2.4em;
+  margin: 0;
+  padding: 8px 14px;
+  font: 0.82rem var(--mono);
+  border-top: 1px solid var(--line);
+}
+
+/* --- Spectrogram --- */
+
+.spectrogram-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}
+
+.spectrogram-head .readout {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scroller {
+  overflow-x: auto;
+}
+
+.scroller canvas {
+  position: sticky;
+  left: 0;
+  display: block;
+  width: 100%;
+}
+
+.spacer {
+  height: 1px;
+}
+
+@media (max-width: 620px) {
+  body {
+    padding: 0;
+  }
+
+  .halves,
+  .processing {
+    grid-template-columns: 1fr;
+  }
+
+  .half:first-child,
+  .half + .switch + .half {
+    padding-inline: 14px;
+  }
+
+  /* Stacked halves: the switch sits in the flow, straddling the line between them. */
+  .switch {
+    position: relative;
+    top: auto;
+    left: auto;
+    justify-self: center;
+    margin: -20px 0;
+    transform: none;
+  }
+
+  .half + .switch + .half {
+    padding-top: 26px;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .half:first-child {
+    padding-bottom: 26px;
+  }
+
+  .duty {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .meter.vertical {
+    height: 120px;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}
