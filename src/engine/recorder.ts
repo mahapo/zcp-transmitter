@@ -4,10 +4,9 @@ import { IqHolder, outputLength } from "../dsp/resample.ts";
 import { download, fileStamp } from "../lib/download.ts";
 import { radio } from "../state/radio.ts";
 import { session } from "../state/session.ts";
-import { ui } from "../state/ui.ts";
 import { text } from "../text.ts";
 import { say } from "./status.ts";
-import { showSpectrogram } from "./view.ts";
+import { showRecording } from "./take.ts";
 
 const MAX_RECORD_SECONDS = 30; // 16 MB per second
 
@@ -51,6 +50,6 @@ export function stopRecording() {
   }
   const name = `zcp_${catalogLabel(session.config.filters)}_${fileStamp()}.iq`;
   download(new Blob(parts, { type: "application/octet-stream" }), name);
-  if (ui.makeSpectrogram) void showSpectrogram(pulses, name);
+  void showRecording(pulses, name);
   say(text.status.saved(name, length / AUDIO_RATE));
 }

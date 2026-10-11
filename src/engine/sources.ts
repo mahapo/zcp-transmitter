@@ -2,42 +2,25 @@
 import { decodeFile } from "../audio/file.ts";
 import { type Mic, levelDb, startMic } from "../audio/mic.ts";
 import { synthesize } from "../audio/tts.ts";
-import { dutyCycle } from "../dsp/chain.ts";
-import { AUDIO_RATE, type ChainConfig } from "../dsp/config.ts";
+import { AUDIO_RATE } from "../dsp/config.ts";
 import { prepareUtterance } from "../dsp/wav.ts";
-import { radio } from "../state/radio.ts";
 import { session } from "../state/session.ts";
 import { signal } from "../state/signal.ts";
-import { ui } from "../state/ui.ts";
 import { text } from "../text.ts";
-import { liveDsp, renderDsp } from "./dspClient.ts";
-import type { DspReply, RenderRequest } from "./protocol.ts";
+import { liveDsp } from "./dspClient.ts";
 import { emit, queue } from "./pulses.ts";
 import { fail, say } from "./status.ts";
-import { showSpectrogram } from "./view.ts";
+import { currentConfig, renderTake, showTake } from "./take.ts";
 
 const MAX_BACKLOG_SECONDS = 2; // of microphone pulses waiting for the transmitter
 
-/** A plain copy of the settings: the reactive ones cannot cross to a worker. */
-function currentConfig(): ChainConfig {
-  return { ...session.config, filters: { ...session.config.filters } };
-}
-
-/**
- * Runs one utterance (48 kHz) through a fresh chain, as the catalog generator
- * does. It only computes: nothing is sent, recorded or counted.
- */
-export function render(audio: Float32Array, spectrogram: boolean): Promise<DspReply<RenderRequest>> {
-  const copy = audio.slice(); // the caller keeps its samples
-  return renderDsp.call({ kind: "render", audio: copy, config: currentConfig(), spectrogram }, [copy.buffer]);
-}
-
-/** Renders an utterance and sends its pulses out. */
+/** Renders an utterance, shows it and sends its pulses out. */
 async function play(audio: Float32Array, title: string) {
-  const { pulses, pulseCount, spectrogram } = await render(audio, ui.makeSpectrogram && !radio.recording);
-  emit(pulses, pulseCount);
-  if (ui.makeSpectrogram && !radio.recording) void showSpectrogram(pulses, title, spectrogram);
-  say(text.status.played(title, audio.length / AUDIO_RATE, pulseCount, dutyCycle(pulses)));
+  const take = await renderTake(audio, title);
+  take.sent = true;
+  emit(take.pulses, take.pulseCount);
+  showTake(take);
+  say(text.status.played(title, audio.length / AUDIO_RATE, take.pulseCount, take.duty));
 }
 
 export async function generateVoice() {

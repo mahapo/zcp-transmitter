@@ -3,7 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
     <title>ZCP Transmitter</title>
+    <script>
+      // The theme before the first paint, so the page never flashes the wrong one. src/state/ui.ts keeps it.
+      try {
+        const kept = JSON.parse(localStorage.getItem("zcp:ui:v1") ?? "{}").theme;
+        document.documentElement.dataset.theme = kept ?? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      } catch {
+        document.documentElement.dataset.theme = "dark";
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

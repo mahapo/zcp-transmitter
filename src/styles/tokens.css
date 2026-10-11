@@ -1,0 +1,126 @@
+/* The design tokens: every colour, size and timing the console uses. Dark is
+   the base; [data-theme="light"] on <html> swaps the colours. */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces, from the page behind the panels up to a hovered control. */
+  --bg: #0a0d11;
+  --surface-1: #11151b;
+  --surface-2: #171c24;
+  --surface-3: #1f2630;
+  --line: #252d38;
+  --line-strong: #364152;
+  --control-border: #4a5669;
+
+  --text: #e6eaf0;
+  --text-muted: #9aa6b4;
+  --text-faint: #7c8897;
+  --text-on-fill: #ffffff;
+
+  --accent: #4cc2ff;
+  --accent-fill: #0b6bb8;
+  --accent-soft: rgb(76 194 255 / 0.14);
+  --ok: #3ddc84;
+  --ok-fill: #1c7a45;
+  --warn: #f5b83d;
+  --danger: #ff6b6b;
+  --air-fill: #d1242f;
+  --air-glow: rgb(255 80 80 / 0.45);
+
+  /* Signal traces; the same signal has the same colour everywhere. */
+  --trace-input: #7aa2f7;
+  --trace-stage: #4cc2ff;
+  --trace-pulse: #ffd166;
+  --trace-rx: #c792ea;
+  --plot-bg: #080a0d;
+  --plot-grid: #1b222b;
+
+  /* The three filter groups of the original app. */
+  --group-conditioning: #7aa2f7;
+  --group-noise: #5fd3a8;
+  --group-shaping: #f0a56b;
+
+  --meter-off: #1c232c;
+  --meter-green: #3ddc84;
+  --meter-yellow: #f5b83d;
+  --meter-red: #ff5a5f;
+
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.5), 0 0 0 1px var(--line-strong);
+  --focus: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+
+  /* Sizes on a 4 px grid. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --r1: 4px;
+  --r2: 8px;
+  --control: 28px;
+  --control-small: 24px;
+  --control-big: 40px;
+
+  --font-ui: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --text-xs: 11px;
+  --text-s: 12px;
+  --text-m: 13px;
+  --text-l: 15px;
+  --text-xl: 20px;
+
+  --fast: 120ms;
+  --slow: 240ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #e9edf1;
+  --surface-1: #ffffff;
+  --surface-2: #f4f6f8;
+  --surface-3: #e8ecf0;
+  --line: #d5dbe2;
+  --line-strong: #b9c2cc;
+  --control-border: #8a96a3;
+
+  --text: #141a21;
+  --text-muted: #4d5a68;
+  --text-faint: #647080;
+
+  --accent: #0a6fc2;
+  --accent-fill: #0a6fc2;
+  --accent-soft: rgb(10 111 194 / 0.1);
+  --ok: #1a7f43;
+  --ok-fill: #1a7f43;
+  --warn: #8a5a00;
+  --danger: #c62828;
+  --air-fill: #d1242f;
+  --air-glow: rgb(209 36 47 / 0.35);
+
+  --trace-input: #3b5bdb;
+  --trace-stage: #0a6fc2;
+  --trace-pulse: #a15c00;
+  --trace-rx: #8250df;
+  --plot-bg: #fbfcfd;
+  --plot-grid: #e3e8ed;
+
+  --group-conditioning: #3b5bdb;
+  --group-noise: #0f7b5f;
+  --group-shaping: #b4540a;
+
+  --meter-off: #dfe4ea;
+  --meter-green: #24a35a;
+  --meter-yellow: #d99a0b;
+  --meter-red: #d93a3a;
+
+  --shadow-pop: 0 12px 32px rgb(20 26 33 / 0.18), 0 0 0 1px var(--line-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fast: 0ms;
+    --slow: 0ms;
+  }
+}

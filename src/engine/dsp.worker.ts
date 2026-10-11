@@ -1,25 +1,44 @@
 // Runs the chain off the main thread: whole utterances through a fresh chain,
 // microphone blocks through one that keeps running.
-import { ZcpChain } from "../dsp/chain.ts";
+import { type ChainProbe, STAGES, type StageId, ZcpChain } from "../dsp/chain.ts";
 import { analyse } from "../dsp/spectrogram.ts";
-import type { DspAnswer, DspCall, DspReply, DspRequest, LiveRequest, RenderRequest } from "./protocol.ts";
+import type { DspAnswer, DspCall, DspReply, DspRequest, LiveReply, LiveRequest, RenderReply, RenderRequest, Tap } from "./protocol.ts";
 
 let live: ZcpChain | undefined;
 
-function render({ audio, config, spectrogram }: RenderRequest): DspReply<RenderRequest> {
+/** A probe that measures every stage's peak and keeps the stages in `wanted`. */
+function watch(wanted: "all" | StageId[] = []) {
+  const peaks = new Float32Array(STAGES.length).fill(Number.NaN);
+  const taps: Tap[] = [];
+  const probe: ChainProbe = {
+    stage(stage, samples, skipped) {
+      let peak = 0;
+      for (let n = 0; n < samples.length; n++) peak = Math.max(peak, Math.abs(samples[n]));
+      peaks[STAGES.indexOf(stage)] = peak;
+      if (wanted === "all" || wanted.includes(stage)) taps.push({ stage, samples, skipped });
+    },
+  };
+  return { probe, peaks, taps };
+}
+
+function render({ audio, config, spectrogram, taps: wanted }: RenderRequest): RenderReply {
   const chain = new ZcpChain(config);
-  const pulses = chain.process(audio);
-  const reply: DspReply<RenderRequest> = { pulses, pulseCount: chain.pulseCount };
+  const { probe, peaks, taps } = watch(wanted);
+  let agcGain: Float32Array | undefined;
+  if (wanted) probe.agcGain = (gain) => (agcGain = gain);
+  const pulses = chain.process(audio, probe);
+  const reply: RenderReply = { pulses, pulseCount: chain.pulseCount, peaks, taps, agcGain };
   if (spectrogram) reply.spectrogram = analyse(pulses) ?? null;
   return reply;
 }
 
-function next({ audio, config }: LiveRequest): DspReply<LiveRequest> {
+function next({ audio, config, tap }: LiveRequest): LiveReply {
   live ??= new ZcpChain(config);
   live.setConfig(config);
   const before = live.pulseCount;
-  const pulses = live.process(audio);
-  return { pulses, pulseCount: live.pulseCount - before };
+  const { probe, peaks, taps } = watch(tap ? [tap] : []);
+  const pulses = live.process(audio, probe);
+  return { pulses, pulseCount: live.pulseCount - before, peaks, tap: taps[0], agcGain: live.agcGain };
 }
 
 function answer(request: DspRequest): DspReply<DspRequest> {
@@ -31,7 +50,10 @@ function answer(request: DspRequest): DspReply<DspRequest> {
 /** The buffers of a reply, which move to the main thread instead of being copied. */
 function buffers(reply: DspReply<DspRequest>): Transferable[] {
   const found: Transferable[] = [];
-  if ("pulses" in reply) found.push(reply.pulses.buffer);
+  if ("pulses" in reply) found.push(reply.pulses.buffer, reply.peaks.buffer);
+  if ("taps" in reply) found.push(...reply.taps.map((tap) => tap.samples.buffer));
+  if ("tap" in reply && reply.tap) found.push(reply.tap.samples.buffer);
+  if ("agcGain" in reply && reply.agcGain instanceof Float32Array) found.push(reply.agcGain.buffer);
   if ("spectrogram" in reply && reply.spectrogram) found.push(reply.spectrogram.db.buffer);
   return found;
 }
