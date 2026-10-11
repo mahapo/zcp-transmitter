@@ -1,5 +1,5 @@
 // The per-sample blocks of the zero-crossing-pulse chain, ported line for line
-// from Combination_Catalog/dsp_blocks.py. Like the originals they keep their
+// from the Python reference's dsp_blocks.py. Like the originals they keep their
 // state in double precision and read and write single-precision samples, so the
 // output matches the reference. Every block filters its samples in place.
 

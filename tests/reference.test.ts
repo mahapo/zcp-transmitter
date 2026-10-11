@@ -1,6 +1,5 @@
-// The chain must reproduce what GNU Radio made of the reference utterance.
-// Unlike chain.golden.test.ts this needs no catalog: src/catalog/reference.json
-// holds the hashes of its files (tools/gen_reference.ts).
+// The chain must reproduce what GNU Radio made of the reference utterance:
+// src/catalog/reference.json holds the size and hashes of each of its 74 files.
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 import { type Match, type Reference, isReferenceAudio, matchReference } from "../src/catalog/reference.ts";

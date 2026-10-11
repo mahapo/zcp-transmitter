@@ -1,5 +1,5 @@
 // How the stages of the chain are named and explained in the flowgraph.
-// Parameters are those of Combination_Catalog/REPROGRAM.md.
+// Parameters are those of the Python reference this app was ported from.
 import type { StageId } from "../../dsp/chain.ts";
 import { FILTERS, type FilterGroup, type FilterKey } from "../../dsp/config.ts";
 

@@ -1,6 +1,7 @@
 // What the GNU Radio app made of the reference utterance, per catalog entry, as
 // sizes and hashes: enough to tell whether this chain reproduces the catalog
-// without its 1.4 GB of IQ files. tools/gen_reference.ts writes reference.json.
+// without its 1.4 GB of IQ files. reference.json was made from those files and
+// is the record of them here.
 import { onsets } from "../dsp/analysis.ts";
 import { AUDIO_RATE, CATALOG_RATE } from "../dsp/config.ts";
 import { sha256Hex } from "../lib/hash.ts";

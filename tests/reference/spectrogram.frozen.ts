@@ -1,5 +1,5 @@
 // A frozen copy of src/dsp/spectrogram.ts as it was when its maths was checked
-// against generate_waterfall() in Combination_Catalog/generate_combinations.py.
+// against generate_waterfall() in the Python reference's generate_combinations.py.
 // tests/spectrogram.test.ts holds the live file to it. Do not edit.
 import { AMPLITUDE, AUDIO_RATE, CATALOG_RATE } from "../../src/dsp/config.ts";
 

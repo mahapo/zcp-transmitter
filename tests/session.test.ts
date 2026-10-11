@@ -1,5 +1,5 @@
 // What a session writes and reads back: links, WAV and IQ files, the manifest and SigMF metadata.
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 import { ZcpChain } from "../src/dsp/chain.ts";
 import { CATALOG_RATE, appDefaults, catalogBaseline, enumerateConfigs, noFilters, normalizeConfig, normalizeFilters } from "../src/dsp/config.ts";
@@ -76,10 +76,6 @@ test("the manifest is written as the Python generator writes it", () => {
   expect(manifestLine(baseline)).toBe("_baseline,baseline,0,0,0,0,0,0,0,0,0,0,0,0,100.0,100.0,2300.0,19496672,1,OK");
   expect(manifestLine({ ...baseline, name: 'a "b", c', status: "ERR:x" })).toContain(',"a ""b"", c",');
   expect(manifestCsv([baseline])).toBe(`${MANIFEST_HEADER}\r\n${manifestLine(baseline)}\r\n`);
-
-  // Byte for byte the file in the catalog, where there is one.
-  const local = new URL("../Combination_Catalog/manifest.csv", import.meta.url);
-  if (existsSync(local)) expect(manifestCsv([baseline])).toBe(readFileSync(local, "utf8"));
 });
 
 test("SigMF metadata describes the IQ file", () => {

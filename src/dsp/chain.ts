@@ -1,6 +1,6 @@
 // The zero-crossing-pulse chain: speech in, one pulse per zero crossing out.
 // Block order and parameters follow CatalogRun in
-// Combination_Catalog/generate_combinations.py.
+// the Python reference's generate_combinations.py.
 import {
   DcBlocker,
   Decimator,

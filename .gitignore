@@ -3,5 +3,6 @@ dist/
 output/
 .DS_Store
 
-# The catalog's IQ files add up to 1.4 GB; regenerate them with generate_combinations.py.
-Combination_Catalog/**/*.iq
+# The Python reference this app was ported from. It is not part of this repository;
+# src/catalog/reference.json holds what the tests need of it.
+Combination_Catalog/

@@ -1,5 +1,5 @@
 // Pulse-waterfall spectrogram of a pulse train, with the maths of
-// generate_waterfall() in Combination_Catalog/generate_combinations.py.
+// generate_waterfall() in the Python reference's generate_combinations.py.
 import { AMPLITUDE, AUDIO_RATE, CATALOG_RATE } from "./config.ts";
 
 export const FFT_SIZE = 64;

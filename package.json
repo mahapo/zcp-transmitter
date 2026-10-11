@@ -8,7 +8,6 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "vue-tsc --noEmit",
-    "gen-reference": "node tools/gen_reference.ts",
     "rx": "node cli/rx.ts",
     "tx": "node cli/tx.ts",
     "tx-wav": "node cli/tx-wav.ts",
