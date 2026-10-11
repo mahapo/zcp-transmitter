@@ -16,6 +16,8 @@ export interface SdrCapabilities {
   gain: Range & { label: string; unit: string; initial: number };
   /** Interleaved IQ the device takes: 16-bit or 8-bit signed, full scale = the type's range. */
   format: "s16" | "s8";
+  /** The receiver's own gain control, on a device that has a receiver the app can use. */
+  rxGain?: Range & { unit: string; initial: number };
 }
 
 export interface TxSettings {
@@ -31,9 +33,41 @@ export interface TxStream {
   chunkSamples: number;
 }
 
+export interface RxSettings {
+  /** The frequency to listen on, in Hz. */
+  frequency: number;
+  gain: number;
+  /**
+   * Whether the receiver may set the sample rate. On boards where both
+   * directions share it, only while nothing transmits.
+   */
+  ownsRate: boolean;
+}
+
+export interface RxStream {
+  sampleRate: number;
+  /** IQ samples every `read` returns. */
+  blockSamples: number;
+  /** The magnitude of the largest sample the converter can give. */
+  fullScale: number;
+}
+
+/** A device's receiver, for watching what the transmitter sends. */
+export interface SdrReceiver {
+  /** Tunes and starts streaming. */
+  start(settings: RxSettings): Promise<RxStream>;
+  /** The next block of interleaved 16-bit IQ. */
+  read(): Promise<Int16Array>;
+  setGain(gain: number): Promise<void>;
+  /** Stops streaming and restores whatever `start` changed. */
+  stop(): Promise<void>;
+}
+
 export interface SdrDevice {
   readonly name: string;
   readonly caps: SdrCapabilities;
+  /** Present when the device can receive while it transmits. */
+  readonly rx?: SdrReceiver;
   /** Tunes, sets the level and gets ready for `write`. */
   startTx(settings: TxSettings): Promise<TxStream>;
   setGain(gain: number): Promise<void>;

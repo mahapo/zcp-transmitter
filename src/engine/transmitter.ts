@@ -3,21 +3,22 @@ import { IqHolder } from "../dsp/resample.ts";
 import { type SdrDevice, requestSdr, webUsbAvailable } from "../sdr/device.ts";
 import { radio } from "../state/radio.ts";
 import { text } from "../text.ts";
+import { connection } from "./device.ts";
 import { meter, queue } from "./pulses.ts";
+import { logSent, resetSent, resumeRx, stopRx, suspendRx } from "./receiver.ts";
 import { fail, say } from "./status.ts";
 
 const TAIL_SECONDS = 0.5; // silence while the device plays out what is still queued
-
-let device: SdrDevice | undefined;
 
 export async function connectSdr() {
   if (radio.connecting) return;
   radio.connecting = true;
   try {
     await disconnectSdr();
-    device = await requestSdr();
+    const device = (connection.device = await requestSdr());
     radio.device = { name: device.name, caps: device.caps };
     radio.gain = device.caps.gain.initial;
+    if (device.caps.rxGain) radio.rxGain = device.caps.rxGain.initial;
     say(text.status.connected(device.name));
   } catch (error) {
     // Closing the browser's device chooser is not an error.
@@ -28,19 +29,22 @@ export async function connectSdr() {
 }
 
 export async function disconnectSdr() {
+  const device = connection.device;
   if (!device) return;
   await stopTx();
+  if (radio.rxWanted) await stopRx();
   await device.close().catch(() => {});
-  device = undefined;
+  connection.device = undefined;
   radio.device = null;
 }
 
 // An unplugged SDR is gone for good; the transmit loop ends by itself on its failed write.
 if (webUsbAvailable()) {
   navigator.usb.addEventListener("disconnect", () => {
-    if (!device) return;
-    device = undefined;
+    if (!connection.device) return;
+    connection.device = undefined;
     radio.device = null;
+    radio.rxWanted = false;
     fail(new Error(text.status.disconnected));
   });
 }
@@ -48,12 +52,17 @@ if (webUsbAvailable()) {
 let transmitting: Promise<void> | undefined;
 
 async function transmit(sdr: SdrDevice) {
+  // A receive monitor that set the sample rate for itself must hand it back first: from here on it is the transmitter's.
+  await suspendRx();
   const { sampleRate, chunkSamples } = await sdr.startTx({ frequency: radio.frequencyHz, gain: radio.gain });
   try {
+    resetSent();
+    resumeRx(); // now alongside the transmitter, leaving the rate alone
     const holder = new IqHolder(sampleRate, sdr.caps.format);
     const next = () => {
       const pulses = queue.pull(holder.inputNeeded(chunkSamples));
       meter(pulses);
+      logSent(pulses);
       return holder.render(pulses, chunkSamples);
     };
     queue.clear();
@@ -64,11 +73,14 @@ async function transmit(sdr: SdrDevice) {
     queue.clear();
     for (let sent = 0; sent < TAIL_SECONDS * sampleRate; sent += chunkSamples) await sdr.write(next());
   } finally {
+    // The other way round on the way out: the receiver lets go before the transmitter restores the rate.
+    await suspendRx().catch(() => {});
     await sdr.stopTx();
   }
 }
 
 export function startTx() {
+  const device = connection.device;
   if (!device || radio.tx !== "off") return;
   radio.tx = "starting";
   transmitting = transmit(device)
@@ -77,6 +89,9 @@ export function startTx() {
     .finally(() => {
       radio.tx = "off";
       queue.clear();
+      resetSent();
+      // Only now, with the transmitter off, may a monitor that is still wanted set the rate for itself again.
+      resumeRx();
     });
 }
 
@@ -88,7 +103,7 @@ export async function stopTx() {
 /** Applies a changed power setting, also while on air. */
 export async function setGain(gain: number) {
   radio.gain = gain;
-  if (radio.tx === "on") await device?.setGain(gain).catch(fail);
+  if (radio.tx === "on") await connection.device?.setGain(gain).catch(fail);
 }
 
 // A closed tab cannot restore the SDR, so warn before leaving while on air.

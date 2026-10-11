@@ -1,7 +1,7 @@
-// AD936x transmitter (PlutoSDR, LibreSDR, Pluto+, HamGeek ...) over iiod: tunes
-// and streams IQ, then restores every setting it touched.
-import type { SdrDevice, SdrDriver, TxSettings, TxStream } from "./device.ts";
-import type { IiodClient } from "./iiod/client.ts";
+// AD936x transmitter and receiver (PlutoSDR, LibreSDR, Pluto+, HamGeek ...) over
+// iiod: each tunes and streams IQ, then restores every setting it touched.
+import type { RxSettings, RxStream, SdrDevice, SdrDriver, TxSettings, TxStream } from "./device.ts";
+import { type IiodClient, toInt16 } from "./iiod/client.ts";
 import { openIioUsb } from "./iiod/webusb.ts";
 
 const PHY = "ad9361-phy";
@@ -112,6 +112,95 @@ export class PlutoTx {
   }
 }
 
+const RX = "cf-ad9361-lpc";
+const RX_LO = { id: "altvoltage0", output: true };
+const RX_CHANNEL = { id: "voltage0", output: false };
+const RX_BLOCK_SECONDS = 0.05;
+const RX_FULL_SCALE = 2048; // 12-bit converter
+const RX_BYTES_PER_SAMPLE = 4; // 16-bit I + 16-bit Q
+/**
+ * The receiver tunes this far below the frequency it is to watch. An
+ * unmodulated pulse would otherwise sit exactly where the receiver removes its
+ * own DC offset and where its oscillator leaks.
+ */
+export const RX_OFFSET_HZ = 500_000;
+export const MAX_RX_GAIN_DB = 71;
+
+/**
+ * The receiver of an AD936x board. `control` carries the attributes and
+ * `stream` the samples; `stream` must not be the session that transmits.
+ */
+export class PlutoRx {
+  #control: IiodClient;
+  #stream: IiodClient;
+  #saved: { frequency: string; gainMode: string; gain: number; bandwidth: string; sampleRate?: string } | undefined;
+  #streaming = false;
+  #blockSamples = 0;
+
+  constructor(control: IiodClient, stream: IiodClient) {
+    this.#control = control;
+    this.#stream = stream;
+  }
+
+  /** `gain` is the receiver's gain in dB, 0..MAX_RX_GAIN_DB, set by hand so that it does not pump on the pulses. */
+  async start({ frequency, gain, ownsRate }: RxSettings): Promise<RxStream> {
+    const sdr = this.#control;
+    this.#saved = {
+      frequency: await sdr.readAttr(PHY, "frequency", RX_LO),
+      gainMode: await sdr.readAttr(PHY, "gain_control_mode", RX_CHANNEL),
+      gain: Number.parseFloat(await sdr.readAttr(PHY, "hardwaregain", RX_CHANNEL)),
+      bandwidth: await sdr.readAttr(PHY, "rf_bandwidth", RX_CHANNEL),
+      // Both directions share one rate; while the transmitter runs it is the transmitter's to set.
+      sampleRate: ownsRate ? await sdr.readAttr(PHY, "sampling_frequency", RX_CHANNEL) : undefined,
+    };
+    try {
+      if (ownsRate) await sdr.writeAttr(PHY, "sampling_frequency", SAMPLE_RATE, RX_CHANNEL);
+      await sdr.writeAttr(PHY, "rf_bandwidth", PULSE_BANDWIDTH, RX_CHANNEL);
+      await sdr.writeAttr(PHY, "gain_control_mode", "manual", RX_CHANNEL);
+      await sdr.writeAttr(PHY, "hardwaregain", gain, RX_CHANNEL);
+      await sdr.writeAttr(PHY, "frequency", Math.round(frequency - RX_OFFSET_HZ), RX_LO);
+      const sampleRate = Number(await sdr.readAttr(PHY, "sampling_frequency", RX_CHANNEL));
+      this.#blockSamples = Math.round(sampleRate * RX_BLOCK_SECONDS);
+      await this.#stream.openBuffer(RX, this.#blockSamples, 0b11);
+      this.#streaming = true;
+      return { sampleRate, blockSamples: this.#blockSamples, fullScale: RX_FULL_SCALE };
+    } catch (error) {
+      await this.stop().catch(() => {});
+      throw error;
+    }
+  }
+
+  /** The next block of interleaved 16-bit IQ. */
+  async read(): Promise<Int16Array> {
+    return toInt16(await this.#stream.readBuffer(RX, this.#blockSamples * RX_BYTES_PER_SAMPLE));
+  }
+
+  async setGain(gain: number): Promise<void> {
+    if (this.#streaming) await this.#control.writeAttr(PHY, "hardwaregain", gain, RX_CHANNEL);
+  }
+
+  /** Stops streaming and puts every setting back; the first failure is reported after trying them all. */
+  async stop(): Promise<void> {
+    const saved = this.#saved;
+    if (!saved) return;
+    this.#saved = undefined;
+    const sdr = this.#control;
+    const steps: (() => Promise<void>)[] = [
+      () => (this.#streaming ? this.#stream.closeBuffer(RX) : Promise.resolve()),
+      () => sdr.writeAttr(PHY, "frequency", saved.frequency, RX_LO),
+      () => sdr.writeAttr(PHY, "rf_bandwidth", saved.bandwidth, RX_CHANNEL),
+      // The gain can only be written while it is still set by hand.
+      () => sdr.writeAttr(PHY, "hardwaregain", saved.gain, RX_CHANNEL),
+      () => sdr.writeAttr(PHY, "gain_control_mode", saved.gainMode, RX_CHANNEL),
+      () => (saved.sampleRate === undefined ? Promise.resolve() : sdr.writeAttr(PHY, "sampling_frequency", saved.sampleRate, RX_CHANNEL)),
+    ];
+    let failure: unknown;
+    for (const step of steps) await step().catch((error) => (failure ??= error));
+    this.#streaming = false;
+    if (failure) throw failure;
+  }
+}
+
 /** The WebUSB driver for the app. */
 export const pluto: SdrDriver = {
   id: "pluto",
@@ -120,17 +209,29 @@ export const pluto: SdrDriver = {
   async open(usb): Promise<SdrDevice> {
     const link = await openIioUsb(usb);
     const tx = new PlutoTx(link.control, link.stream);
+    // The receiver gets its USB pipe when it is first started.
+    let rx: PlutoRx | undefined;
     return {
       name: usb.productName ?? "PlutoSDR",
       caps: {
         frequency: { min: 70e6, max: 6e9, step: 1 },
         gain: { min: MAX_ATTENUATION_DB, max: 0, step: 0.25, label: "TX attenuation", unit: "dB", initial: MAX_ATTENUATION_DB },
         format: "s16",
+        rxGain: { min: 0, max: MAX_RX_GAIN_DB, step: 1, unit: "dB", initial: 20 },
       },
       startTx: (settings) => tx.start(settings),
       setGain: (gain) => tx.setGain(gain),
       write: (iq) => tx.write(iq),
       stopTx: () => tx.stop(),
+      rx: {
+        async start(settings) {
+          rx ??= new PlutoRx(link.control, await link.receive());
+          return rx.start(settings);
+        },
+        read: () => rx!.read(),
+        setGain: async (gain) => rx?.setGain(gain),
+        stop: async () => rx?.stop(),
+      },
       close: () => link.close(),
     };
   },

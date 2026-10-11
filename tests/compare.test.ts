@@ -2,7 +2,7 @@
 import { expect, test } from "vitest";
 import { onsets, pulseEdges, pulsesFromEdges } from "../src/dsp/analysis.ts";
 import { ZcpChain } from "../src/dsp/chain.ts";
-import { compareOnsets } from "../src/dsp/compare.ts";
+import { compareLoopback, compareOnsets } from "../src/dsp/compare.ts";
 import { appDefaults, catalogBaseline, noFilters } from "../src/dsp/config.ts";
 import { LAB_ENTRIES } from "../src/state/lab.ts";
 import { referenceUtterance } from "./helpers/utterance.ts";
@@ -74,4 +74,19 @@ test("the lab runs each distinct result once", () => {
     const other = LAB_ENTRIES.find((each) => each.path === entry.sameAs)!;
     expect(new ZcpChain(entry.config).process(audio)).toEqual(new ZcpChain(other.config).process(audio));
   }
+});
+
+test("what came back is held against what was sent, whenever each record began", () => {
+  const sent = Array.from({ length: 150 }, (_, n) => 5000 + 41 * n + ((n * 13) % 17));
+  // The receiver's record starts earlier and ends later, and hears everything 90 ms late.
+  const before = [100, 900, 2000];
+  const after = [200_000, 201_000];
+  const heard = (list: number[]) => [...before, ...list.map((at) => at + 4320), ...after];
+  expect(compareLoopback(sent, heard(sent), 2, 144_000)).toEqual({ lag: 4320, matched: 150, onlyA: 0, onlyB: 0 });
+  // Five pulses lost on the way and one that was never sent.
+  const lossy = sent.filter((_, n) => n % 30 !== 7);
+  const withExtra = [...lossy.slice(0, 60), lossy[59] + 20, ...lossy.slice(60)];
+  expect(compareLoopback(sent, heard(withExtra), 2, 144_000)).toEqual({ lag: 4320, matched: 145, onlyA: 5, onlyB: 1 });
+  expect(compareLoopback([], heard(sent), 2, 144_000)).toEqual({ lag: 0, matched: 0, onlyA: 0, onlyB: 0 });
+  expect(compareLoopback(sent, [], 2, 144_000)).toMatchObject({ matched: 0, onlyA: 150, onlyB: 0 });
 });

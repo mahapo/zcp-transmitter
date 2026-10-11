@@ -8,6 +8,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "vue-tsc --noEmit",
+    "info": "node cli/info.ts",
+    "monitor": "node cli/monitor.ts",
     "rx": "node cli/rx.ts",
     "tx": "node cli/tx.ts",
     "tx-wav": "node cli/tx-wav.ts",

@@ -8,7 +8,10 @@ export const IIOD_PORT = 30431;
 export interface Transport {
   /** Sends `data` as one unit; over USB that is one transfer, which iiod reads as one command. */
   send(data: Uint8Array): Promise<void>;
-  /** Resolves with 1..`max` bytes once any have arrived. */
+  /**
+   * Resolves once any bytes have arrived. `max` is how many the caller can use
+   * right now; a transport that reads in whole packets may hand back more.
+   */
   recv(max: number): Promise<Uint8Array>;
   close(): void | Promise<void>;
 }
@@ -116,6 +119,15 @@ export class IiodClient {
 
   readAttr(device: string, attr: string, channel?: ChannelRef): Promise<string> {
     const command = `READ ${target(device, channel)} ${attr}`;
+    return this.#exclusive(async () => {
+      await this.#command(command);
+      return decoder.decode(await this.#payload(command)).replace(/[\0\n]+$/, "");
+    });
+  }
+
+  /** Reads one of a device's debug attributes, which the board keeps apart from the ordinary ones. */
+  readDebugAttr(device: string, attr: string): Promise<string> {
+    const command = `READ ${device} DEBUG ${attr}`;
     return this.#exclusive(async () => {
       await this.#command(command);
       return decoder.decode(await this.#payload(command)).replace(/[\0\n]+$/, "");
