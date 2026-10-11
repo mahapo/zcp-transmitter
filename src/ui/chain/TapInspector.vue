@@ -91,10 +91,11 @@ useCanvas(
       traces: [{ samples: tap.value.samples, offset: offset.value, scale: unipolar ? 1 : peak.value * 1.08, unipolar, color: token(color.value) }],
       pulses: unipolar ? undefined : { samples: take.pulses, offset: 0 },
       cursor: ui.cursorMs === null ? null : ui.cursorMs * SAMPLES_PER_MS,
+      playhead: ui.playheadMs === null ? null : ui.playheadMs * SAMPLES_PER_MS,
       note: unipolar ? undefined : t.peak(peak.value),
     });
   },
-  [() => signal.take, tap, span, () => ui.cursorMs, isLive, tick, () => ui.liveWindowMs],
+  [() => signal.take, tap, span, () => ui.cursorMs, () => ui.playheadMs, isLive, tick, () => ui.liveWindowMs],
 );
 
 useCanvas(

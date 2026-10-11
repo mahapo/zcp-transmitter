@@ -47,9 +47,12 @@ function span(): { from: number; count: number } {
 }
 
 let frame = 0;
+let pending = false;
 function draw() {
-  cancelAnimationFrame(frame);
+  if (pending) return;
+  pending = true;
   frame = requestAnimationFrame(() => {
+    pending = false;
     const box = scroller.value;
     const target = canvas.value;
     if (!box || !target || !shown.value || box.clientWidth === 0 || box.clientHeight === 0) return;
@@ -83,6 +86,13 @@ function savePng() {
   const name = title.endsWith(".iq") ? title.replace(/\.iq$/, ".png") : `zcp_${fileStamp()}.png`;
   target.toBlob((blob) => blob && download(blob, name));
 }
+
+/** Where the monitor is playing, as a position in this view. */
+const playhead = computed(() => {
+  if (ui.playheadMs === null || !ui.span) return null;
+  const share = (ui.playheadMs - ui.span.fromMs) / (ui.span.toMs - ui.span.fromMs);
+  return share < 0 || share > 1 ? null : share * view.value.width;
+});
 
 function onPointer(event: PointerEvent) {
   if (!scroller.value || !ui.span) return;
@@ -131,6 +141,7 @@ watch([pxPerMs, themeRevision], draw, { flush: "post" });
       <canvas ref="canvas" role="img" :aria-label="shown ? t.canvas(shown.title) : undefined" />
       <div class="spacer" :style="{ width: `${totalWidth}px` }" />
     </div>
+    <div v-if="playhead !== null" class="playhead" :style="{ left: `${playhead}px` }" aria-hidden="true" />
     <div v-if="cursor" class="cursor" :style="{ left: `${cursor.x}px` }" aria-hidden="true">
       <span class="num" :class="{ flip: cursor.x > view.width - 190 }">{{ cursor.label }}</span>
     </div>
@@ -184,6 +195,16 @@ canvas {
   width: 1px;
   pointer-events: none;
   background: rgb(255 255 255 / 0.55);
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  pointer-events: none;
+  background: var(--accent);
 }
 
 .cursor span {

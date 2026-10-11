@@ -10,6 +10,7 @@ import { signal } from "../state/signal.ts";
 import { text } from "../text.ts";
 import { liveDsp } from "./dspClient.ts";
 import { feedLive, resetLive } from "./instruments.ts";
+import { monitorLive } from "./monitor.ts";
 import { emit, queue } from "./pulses.ts";
 import { fail, say } from "./status.ts";
 import { currentConfig, renderTake, showTake } from "./take.ts";
@@ -75,6 +76,7 @@ export async function toggleMic() {
       const reply = await liveDsp.call({ kind: "live", audio: samples, config: currentConfig(), tap: signalAt(signal.stage, session.config.filters) }, [samples.buffer]);
       if (!signal.micOn) return;
       feedLive(input, reply);
+      monitorLive(input, reply);
       if (!backlogged) emit(reply.pulses, reply.pulseCount);
     });
     signal.micOn = true;

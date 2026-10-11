@@ -43,6 +43,9 @@ export const signal = reactive({
   /** True while changed settings are being applied to the take. */
   previewing: false,
 
+  /** True while the take is being played over the loudspeaker. */
+  monitoring: false,
+
   /** Pulses that began within the last second of what went out. */
   pulseRate: 0,
   /** The gain of the microphone chain's AGC. */

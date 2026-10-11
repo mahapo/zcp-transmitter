@@ -15,6 +15,7 @@ export const text = {
     zoomOut: "Zoom the waterfall out",
     zoomFit: "Fit the waterfall",
     resetPeak: "Reset the duty cycle peak",
+    monitor: "Listen to the take, or stop",
     show: "Show or hide this list",
     noTx: "No key starts the transmitter. Going on air takes a click.",
   },
@@ -59,6 +60,21 @@ export const text = {
     unmute: "Unmute microphone",
     mute: "Mute microphone",
     decibel: (db: number) => `${db.toFixed(1)} dB`,
+  },
+
+  monitor: {
+    title: "Monitor",
+    play: "Listen",
+    stop: "Stop",
+    source: "What to listen to",
+    input: "Input",
+    tap: "Tap",
+    pulses: "Pulses",
+    tapNote: "The signal after the block selected in the chain",
+    volume: "Volume",
+    percent: (volume: number) => `${Math.round(100 * volume)} %`,
+    live: "Listen while live",
+    liveHint: "Use headphones: a loudspeaker would feed back into the microphone.",
   },
 
   chain: {

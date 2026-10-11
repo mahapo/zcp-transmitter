@@ -31,6 +31,8 @@ export interface ScopeView {
   /** Marks along the bottom wherever it is above zero, on the same time axis. */
   pulses?: { samples: Float32Array; offset: number };
   cursor?: number | null;
+  /** Where playback is, on the same axis. */
+  playhead?: number | null;
   note?: string;
 }
 
@@ -118,10 +120,13 @@ export function paintScope(context: CanvasRenderingContext2D, width: number, hei
     context.fillStyle = faint;
     context.fillText(view.note, width - 6, FONT_PX + 4);
   }
-  if (view.cursor !== null && view.cursor !== undefined && view.cursor >= view.from && view.cursor <= view.to) {
-    context.fillStyle = token("--text-muted");
-    context.fillRect(Math.round((view.cursor - view.from) / perPixel), 0, 1, height - AXIS_PX);
-  }
+  const line = (at: number | null | undefined, color: string, thickness: number) => {
+    if (at === null || at === undefined || at < view.from || at > view.to) return;
+    context.fillStyle = color;
+    context.fillRect(Math.round((at - view.from) / perPixel) - (thickness - 1) / 2, 0, thickness, height - AXIS_PX);
+  };
+  line(view.cursor, token("--text-muted"), 1);
+  line(view.playhead, token("--accent"), 2);
 }
 
 export interface SpectrumView {

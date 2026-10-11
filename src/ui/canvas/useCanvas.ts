@@ -9,9 +9,14 @@ export function useCanvas(
   sources: WatchSource[] = [],
 ): () => void {
   let frame = 0;
+  let pending = false;
+  // A request while one is pending is dropped, not put in its place: data that
+  // changes every frame would otherwise push the repaint ahead of itself for ever.
   const repaint = () => {
-    cancelAnimationFrame(frame);
+    if (pending) return;
+    pending = true;
     frame = requestAnimationFrame(() => {
+      pending = false;
       const element = canvas.value;
       if (!element) return;
       const { clientWidth: width, clientHeight: height } = element;

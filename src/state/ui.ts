@@ -19,6 +19,9 @@ const kept = load(STORAGE_KEY, {
   makeSpectrogram: true,
   chainView: "flow" as "flow" | "list",
   dockTab: "waterfall" as "waterfall" | "instruments",
+  /** What the monitor plays: the input, the stage in view or the pulses. */
+  monitorSource: "input" as "input" | "tap" | "pulses",
+  monitorVolume: 0.5,
 });
 
 export interface Toast {
@@ -41,11 +44,15 @@ export const ui = reactive({
   /** Where the pointer is on the time axis, shared by every view of the take. */
   cursorMs: null as number | null,
   liveWindowMs: 500,
+  /** Where the monitor is playing, on the same time axis. */
+  playheadMs: null as number | null,
+  /** Whether the microphone's chain is played as it runs. Off at every start: a loudspeaker would feed back. */
+  monitorLive: false,
 
   ...kept,
 });
 
 watch(
-  () => ({ theme: ui.theme, dockHeight: ui.dockHeight, makeSpectrogram: ui.makeSpectrogram, chainView: ui.chainView, dockTab: ui.dockTab }),
+  () => ({ theme: ui.theme, dockHeight: ui.dockHeight, makeSpectrogram: ui.makeSpectrogram, chainView: ui.chainView, dockTab: ui.dockTab, monitorSource: ui.monitorSource, monitorVolume: ui.monitorVolume }),
   (settings) => save(STORAGE_KEY, settings),
 );

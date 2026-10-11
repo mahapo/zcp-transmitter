@@ -12,6 +12,7 @@ import UiButton from "../primitives/UiButton.vue";
 import UiPanel from "../primitives/UiPanel.vue";
 import UiSegmented from "../primitives/UiSegmented.vue";
 import UiSelect from "../primitives/UiSelect.vue";
+import MonitorBar from "./MonitorBar.vue";
 
 const MIC_FLOOR_DB = -60;
 const t = text.source;
@@ -82,7 +83,7 @@ function onFile(event: Event) {
         </UiButton>
       </div>
 
-      <slot />
+      <MonitorBar />
     </div>
   </UiPanel>
 </template>
@@ -96,6 +97,7 @@ function onFile(event: Event) {
 }
 
 .source {
+  min-height: 100%;
   padding: var(--s3);
 }
 

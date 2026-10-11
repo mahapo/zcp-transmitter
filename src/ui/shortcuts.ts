@@ -1,7 +1,7 @@
 // The keyboard shortcuts. None of them starts the transmitter: going on air takes a deliberate click.
 import { onBeforeUnmount, onMounted } from "vue";
 import { STAGES } from "../dsp/chain.ts";
-import { generateVoice } from "../engine/engine.ts";
+import { generateVoice, toggleMonitor } from "../engine/engine.ts";
 import { signal } from "../state/signal.ts";
 import { WATERFALL_ZOOMS, ui } from "../state/ui.ts";
 import { text } from "../text.ts";
@@ -30,6 +30,7 @@ const t = text.shortcuts;
 
 export const SHORTCUTS: Shortcut[] = [
   { keys: ["Mod", "Enter"], match: ["Enter"], mod: true, label: t.generate, run: () => void generateVoice() },
+  { keys: ["Space"], match: [" "], label: t.monitor, run: toggleMonitor },
   { keys: ["["], match: ["["], label: t.previousTap, run: () => stepStage(-1) },
   { keys: ["]"], match: ["]"], label: t.nextTap, run: () => stepStage(1) },
   { keys: ["+"], match: ["+", "="], label: t.zoomIn, run: () => stepZoom(1) },
@@ -39,16 +40,18 @@ export const SHORTCUTS: Shortcut[] = [
   { keys: ["?"], match: ["?"], label: t.show, run: () => (ui.shortcutsOpen = !ui.shortcutsOpen) },
 ];
 
-/** Typing into a field must stay typing. */
-function inField(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+/** Typing into a field must stay typing, and a key that works a focused control must keep doing that. */
+function inField(target: EventTarget | null, key: string): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return true;
+  return key === " " && target.closest("button, a, summary, [role]") !== null;
 }
 
 function onKey(event: KeyboardEvent) {
   if (event.altKey || event.defaultPrevented) return;
   const mod = event.metaKey || event.ctrlKey;
   const shortcut = SHORTCUTS.find((each) => each.match.includes(event.key) && Boolean(each.mod) === mod);
-  if (!shortcut || (!shortcut.mod && inField(event.target))) return;
+  if (!shortcut || (!shortcut.mod && inField(event.target, event.key))) return;
   event.preventDefault();
   shortcut.run();
 }
