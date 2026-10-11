@@ -14,12 +14,12 @@ const t = text.chain;
   <div class="duty" role="group" :aria-label="t.duty">
     <div class="row">
       <span class="label">{{ t.dutyLive }}</span>
-      <SegmentMeter :value="signal.dutyLive / DUTY_FULL_SCALE" :segments="20" :zones="DUTY_ZONES" :label="`${t.duty}, ${t.dutyLive}`" :value-text="t.percent(signal.dutyLive)" />
+      <SegmentMeter :value="signal.dutyLive / DUTY_FULL_SCALE" :segments="16" :zones="DUTY_ZONES" :label="`${t.duty}, ${t.dutyLive}`" :value-text="t.percent(signal.dutyLive)" />
       <output class="num">{{ t.percent(signal.dutyLive) }}</output>
     </div>
     <div class="row">
       <span class="label">{{ t.dutyPeak }}</span>
-      <SegmentMeter :value="signal.dutyPeak / DUTY_FULL_SCALE" :segments="20" :zones="DUTY_ZONES" :label="`${t.duty}, ${t.dutyPeak}`" :value-text="t.percent(signal.dutyPeak)" />
+      <SegmentMeter :value="signal.dutyPeak / DUTY_FULL_SCALE" :segments="16" :zones="DUTY_ZONES" :label="`${t.duty}, ${t.dutyPeak}`" :value-text="t.percent(signal.dutyPeak)" />
       <output class="num">{{ t.percent(signal.dutyPeak) }}</output>
     </div>
     <button type="button" class="reset" :title="t.resetPeak" :aria-label="t.resetPeak" @click="signal.dutyPeak = 0"><UiIcon name="reset" :size="14" /></button>

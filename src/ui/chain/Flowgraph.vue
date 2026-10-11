@@ -16,7 +16,8 @@ const isOn = (stage: StageInfo) => !stage.filter || session.config.filters[stage
 
 /** How far the block's level bar is filled: its peak on a scale from -60 dB to full scale. */
 function level(stage: StageInfo): string {
-  const peak = stage.id === "deEmphasis" ? Number.NaN : signal.take?.peaks?.[STAGES.indexOf(stage.id)];
+  const peaks = signal.micOn ? signal.livePeaks : signal.take?.peaks;
+  const peak = stage.id === "deEmphasis" ? Number.NaN : peaks?.[STAGES.indexOf(stage.id)];
   if (peak === undefined || !(peak > 0)) return "0%";
   return `${Math.max(0, Math.min(1, 1 - (20 * Math.log10(peak)) / FLOOR_DB)) * 100}%`;
 }

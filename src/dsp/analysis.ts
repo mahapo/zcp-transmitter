@@ -78,3 +78,22 @@ export function spectrumDb(samples: Float32Array, from = 0, to = samples.length,
   const scale = 4 / (windowSum * windowSum * segments);
   return Float32Array.from(power, (value) => Math.max(SPECTRUM_FLOOR_DB, 10 * Math.log10(value * scale + 1e-30)));
 }
+
+/** Follows a stream of pulses block by block and reports where pulses begin. */
+export class OnsetTracker {
+  #on = false; // whether the stream ended inside a pulse
+  /** Samples seen so far. */
+  total = 0;
+
+  /** The positions in the stream at which the pulses within `pulses` begin. A pulse running on from the block before is not one. */
+  push(pulses: Float32Array): number[] {
+    const found: number[] = [];
+    for (let n = 0; n < pulses.length; n++) {
+      const on = pulses[n] > 0;
+      if (on && !this.#on) found.push(this.total + n);
+      this.#on = on;
+    }
+    this.total += pulses.length;
+    return found;
+  }
+}

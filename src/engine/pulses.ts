@@ -4,6 +4,7 @@ import { AUDIO_RATE } from "../dsp/config.ts";
 import { PulseQueue } from "../dsp/resample.ts";
 import { radio } from "../state/radio.ts";
 import { signal } from "../state/signal.ts";
+import { feedAir } from "./instruments.ts";
 import { capture } from "./recorder.ts";
 
 const METER_SAMPLES = AUDIO_RATE / 10; // duty cycle is measured over 100 ms
@@ -13,8 +14,9 @@ const METER_HOLD_MS = 400; // the live meter falls back to zero after this long 
 export const queue = new PulseQueue();
 let meterTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** Shows the duty cycle of `pulses`, 100 ms at a time. */
+/** Shows the duty cycle of `pulses`, 100 ms at a time, and hands them to the instruments. */
 export function meter(pulses: Float32Array) {
+  feedAir(pulses);
   for (let start = 0; start < pulses.length; start += METER_SAMPLES) {
     signal.dutyLive = dutyCycle(pulses, start, Math.min(pulses.length, start + METER_SAMPLES));
     signal.dutyPeak = Math.max(signal.dutyPeak, signal.dutyLive);

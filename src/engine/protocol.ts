@@ -35,7 +35,13 @@ export interface SpectrogramRequest {
   pulses: Float32Array;
 }
 
-export type DspRequest = RenderRequest | LiveRequest | SpectrogramRequest;
+/** The next pulses of the stream the rolling waterfall follows. */
+export interface WaterfallRequest {
+  kind: "waterfall";
+  pulses: Float32Array;
+}
+
+export type DspRequest = RenderRequest | LiveRequest | SpectrogramRequest | WaterfallRequest;
 
 export interface PulsesReply {
   pulses: Float32Array;
@@ -62,7 +68,18 @@ export interface LiveReply extends PulsesReply {
   agcGain: number;
 }
 
-export type DspReply<R extends DspRequest> = R extends RenderRequest ? RenderReply : R extends LiveRequest ? LiveReply : SpectrogramReply;
+export interface WaterfallReply {
+  /** The columns these pulses completed: FFT_SIZE levels each, see levelByte in dsp/waterfall.ts. */
+  columns: Uint8Array;
+}
+
+export type DspReply<R extends DspRequest> = R extends RenderRequest
+  ? RenderReply
+  : R extends LiveRequest
+    ? LiveReply
+    : R extends WaterfallRequest
+      ? WaterfallReply
+      : SpectrogramReply;
 
 export interface DspCall {
   id: number;

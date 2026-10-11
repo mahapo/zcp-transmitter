@@ -1,12 +1,26 @@
 <script setup lang="ts">
 // The strip along the bottom that shows the signal over time. Its height can be dragged.
+import { watch } from "vue";
+import { signal } from "../../state/signal.ts";
 import { ui } from "../../state/ui.ts";
 import { text } from "../../text.ts";
+import UiSegmented from "../primitives/UiSegmented.vue";
+import InstrumentsView from "./InstrumentsView.vue";
 import WaterfallView from "./WaterfallView.vue";
 
 const MIN_HEIGHT = 160;
 const KEY_STEP = 24;
 const t = text.dock;
+const tabs = [
+  { value: "waterfall" as const, label: t.waterfall, icon: "activity" as const },
+  { value: "instruments" as const, label: text.instruments.tab, icon: "sliders" as const },
+];
+
+// The waterfall shows a finished take; with the microphone on, the instruments are where things happen.
+watch(
+  () => signal.micOn,
+  (on) => on && (ui.dockTab = "instruments"),
+);
 
 const maxHeight = () => Math.max(MIN_HEIGHT, Math.round(innerHeight * 0.6));
 const clamp = (height: number) => Math.max(MIN_HEIGHT, Math.min(maxHeight(), Math.round(height)));
@@ -44,11 +58,12 @@ function drag(event: PointerEvent) {
       @keydown.down.prevent="ui.dockHeight = clamp(ui.dockHeight - KEY_STEP)"
     />
     <header class="head">
-      <h2 class="label">{{ t.waterfall }}</h2>
+      <UiSegmented v-model="ui.dockTab" :options="tabs" :label="t.tabs" size="s" />
       <div id="dock-tools" class="tools" />
     </header>
     <div class="body">
-      <WaterfallView />
+      <WaterfallView v-if="ui.dockTab === 'waterfall'" />
+      <InstrumentsView v-else />
     </div>
   </section>
 </template>
@@ -107,7 +122,7 @@ function drag(event: PointerEvent) {
   gap: var(--s3);
   align-items: center;
   min-height: 36px;
-  padding: 0 var(--s2) 0 var(--s3);
+  padding: 0 var(--s2);
   border-bottom: 1px solid var(--line);
 }
 

@@ -96,6 +96,11 @@ export const text = {
     inspector: "Inspector",
     after: "after",
     bypassed: (shown: string) => `off, showing ${shown}`,
+    live: "LIVE",
+    window: (ms: number) => (ms >= 1000 ? `${ms / 1000} s` : `${ms} ms`),
+    windowLabel: "How much of the live signal is shown",
+    rate: "Rate",
+    agc: "AGC",
     preview: "Preview",
     previewNote: "The settings changed after this was played. What you see is what they would make of it; nothing was sent.",
     sent: "As played",
@@ -132,6 +137,20 @@ export const text = {
     stopAndSave: (seconds: number) => `Stop & Save (${seconds.toFixed(1)} s)`,
     makeSpectrogram: "Generate Spectrogram Image",
     megahertzReadout: (hz: number) => `${(hz / 1e6).toFixed(3)} MHz`,
+  },
+
+  instruments: {
+    tab: "Instruments",
+    rolling: "Going out",
+    rollingAbout: "Rolling waterfall of the pulses that went out, the latest at the right",
+    spacing: "Pulse spacing",
+    spacingAbout: "How often each time between the starts of two pulses occurred, from 0.1 to 100 ms",
+    dutyHistory: "Duty cycle, last minute",
+    dutyHistoryAbout: "The duty cycle per 100 ms over the last minute, up to 10 %",
+    pulseRate: "Pulse rate",
+    perSecond: (rate: number) => `${rate} /s`,
+    agc: "AGC gain",
+    gain: (gain: number) => `${gain > 0 ? (20 * Math.log10(gain)).toFixed(1) : "0.0"} dB`,
   },
 
   dock: {

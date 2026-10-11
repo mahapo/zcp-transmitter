@@ -56,6 +56,14 @@ const views = [
             <span class="label">{{ t.pulses }}</span>
             <output class="num">{{ signal.pulses.toLocaleString("en-US") }}</output>
           </div>
+          <div class="count">
+            <span class="label">{{ t.rate }}</span>
+            <output class="num">{{ text.instruments.perSecond(signal.pulseRate) }}</output>
+          </div>
+          <div class="count">
+            <span class="label">{{ t.agc }}</span>
+            <output class="num wide">{{ signal.micOn ? text.instruments.gain(signal.agcGain) : text.output.none }}</output>
+          </div>
         </section>
       </div>
     </div>
@@ -92,14 +100,15 @@ const views = [
 
 .meters {
   display: flex;
-  gap: var(--s5);
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s5);
   align-items: center;
   padding: var(--s2) var(--s3);
   border-top: 1px solid var(--line);
 }
 
 .meters > :first-child {
-  flex: 1;
+  flex: 1 1 300px;
 }
 
 .count {
@@ -112,6 +121,10 @@ const views = [
   min-width: 4ch;
   font-size: var(--text-s);
   text-align: right;
+}
+
+.count output.wide {
+  min-width: 7ch;
 }
 
 @container (max-width: 620px) {

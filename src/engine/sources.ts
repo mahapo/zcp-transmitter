@@ -3,11 +3,13 @@ import { decodeFile } from "../audio/file.ts";
 import { type Mic, levelDb, startMic } from "../audio/mic.ts";
 import { synthesize } from "../audio/tts.ts";
 import { AUDIO_RATE } from "../dsp/config.ts";
+import { signalAt } from "../dsp/stages.ts";
 import { prepareUtterance } from "../dsp/wav.ts";
 import { session } from "../state/session.ts";
 import { signal } from "../state/signal.ts";
 import { text } from "../text.ts";
 import { liveDsp } from "./dspClient.ts";
+import { feedLive, resetLive } from "./instruments.ts";
 import { emit, queue } from "./pulses.ts";
 import { fail, say } from "./status.ts";
 import { currentConfig, renderTake, showTake } from "./take.ts";
@@ -65,11 +67,15 @@ export async function toggleMic() {
     return;
   }
   try {
+    resetLive();
     mic = await startMic(async (samples) => {
       signal.micDb = levelDb(samples);
       const backlogged = queue.length > MAX_BACKLOG_SECONDS * AUDIO_RATE;
-      const { pulses, pulseCount } = await liveDsp.call({ kind: "live", audio: samples, config: currentConfig() }, [samples.buffer]);
-      if (signal.micOn && !backlogged) emit(pulses, pulseCount);
+      const input = samples.slice(); // the block itself moves to the worker
+      const reply = await liveDsp.call({ kind: "live", audio: samples, config: currentConfig(), tap: signalAt(signal.stage, session.config.filters) }, [samples.buffer]);
+      if (!signal.micOn) return;
+      feedLive(input, reply);
+      if (!backlogged) emit(reply.pulses, reply.pulseCount);
     });
     signal.micOn = true;
   } catch (error) {

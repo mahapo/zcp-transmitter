@@ -6,26 +6,37 @@ import { STAGES } from "../../dsp/chain.ts";
 import { spectrumDb } from "../../dsp/analysis.ts";
 import { AUDIO_RATE } from "../../dsp/config.ts";
 import { signalAt } from "../../dsp/stages.ts";
+import { session } from "../../state/session.ts";
+import { live, tick } from "../../engine/instruments.ts";
 import { signal } from "../../state/signal.ts";
-import { ui } from "../../state/ui.ts";
+import { LIVE_WINDOWS_MS, ui } from "../../state/ui.ts";
 import { text } from "../../text.ts";
 import { paintScope, paintSpectrum } from "../canvas/plotPaint.ts";
 import { token } from "../canvas/theme.ts";
 import { useCanvas } from "../canvas/useCanvas.ts";
 import UiBadge from "../primitives/UiBadge.vue";
 import UiIcon from "../primitives/UiIcon.vue";
+import UiSegmented from "../primitives/UiSegmented.vue";
 import { stageInfo } from "./stages.ts";
 
 const SAMPLES_PER_MS = AUDIO_RATE / 1000;
+const LIVE_SPECTRUM_SAMPLES = AUDIO_RATE / 2;
 const t = text.chain;
+const windows = LIVE_WINDOWS_MS.map((ms) => ({ value: String(ms), label: t.window(ms) }));
+const liveWindow = computed({ get: () => String(ui.liveWindowMs), set: (value) => (ui.liveWindowMs = Number(value)) });
 
 const scope = ref<HTMLCanvasElement>();
 const spectrum = ref<HTMLCanvasElement>();
 
+/** While the microphone is on, the plots follow its chain instead of the take. */
+const isLive = computed(() => signal.micOn);
 const selected = computed(() => stageInfo(signal.stage));
 /** The stage whose output is the signal at the selected block: a filter that is off passes it on unchanged. */
-const shownStage = computed(() => (signal.take ? signalAt(signal.stage, signal.take.config.filters) : signal.stage));
-const tap = computed(() => signal.take?.taps.get(shownStage.value));
+const shownStage = computed(() => {
+  if (isLive.value) return signalAt(signal.stage, session.config.filters);
+  return signal.take ? signalAt(signal.stage, signal.take.config.filters) : signal.stage;
+});
+const tap = computed(() => (isLive.value ? undefined : signal.take?.taps.get(shownStage.value)));
 /** Where the tap's first sample lies on the time axis of the pulses, which the waterfall uses. */
 const offset = computed(() => {
   const take = signal.take;
@@ -43,12 +54,34 @@ const peak = computed(() => {
   for (const value of tap.value?.samples ?? []) found = Math.max(found, Math.abs(value));
   return found || 1;
 });
-const levels = computed(() => (tap.value ? spectrumDb(tap.value.samples, span.value.from - offset.value, span.value.to - offset.value) : undefined));
+const levels = computed(() => {
+  if (isLive.value) return tick.value >= 0 ? spectrumDb(live.stage.latest(LIVE_SPECTRUM_SAMPLES)) : undefined;
+  return tap.value ? spectrumDb(tap.value.samples, span.value.from - offset.value, span.value.to - offset.value) : undefined;
+});
+const hasSignal = computed(() => isLive.value || tap.value !== undefined);
 const color = computed(() => (shownStage.value === "pulse" ? "--trace-pulse" : shownStage.value === "input" ? "--trace-input" : "--trace-stage"));
+
+/** The microphone's chain over the last moments, the latest at the right edge. */
+function paintLive(context: CanvasRenderingContext2D, width: number, height: number) {
+  const count = Math.round(ui.liveWindowMs * SAMPLES_PER_MS);
+  const unipolar = shownStage.value === "pulse";
+  const samples = live.stage.latest(count);
+  let level = 0;
+  for (const value of samples) level = Math.max(level, Math.abs(value));
+  paintScope(context, width, height, {
+    from: 0,
+    to: count,
+    sampleRate: AUDIO_RATE,
+    traces: [{ samples, offset: 0, scale: unipolar ? 1 : Math.max(1e-3, level * 1.08), unipolar, color: token(color.value) }],
+    pulses: unipolar ? undefined : { samples: live.pulses.latest(count), offset: 0 },
+    note: unipolar ? undefined : t.peak(level),
+  });
+}
 
 useCanvas(
   scope,
   (context, width, height) => {
+    if (isLive.value) return paintLive(context, width, height);
     const take = signal.take;
     if (!take || !tap.value) return;
     const unipolar = shownStage.value === "pulse";
@@ -61,21 +94,21 @@ useCanvas(
       note: unipolar ? undefined : t.peak(peak.value),
     });
   },
-  [() => signal.take, tap, span, () => ui.cursorMs],
+  [() => signal.take, tap, span, () => ui.cursorMs, isLive, tick, () => ui.liveWindowMs],
 );
 
 useCanvas(
   spectrum,
   (context, width, height) => {
-    const take = signal.take;
-    if (!take || !levels.value) return;
+    const config = isLive.value ? session.config : signal.take?.config;
+    if (!config || !levels.value) return;
     paintSpectrum(context, width, height, {
       db: levels.value,
       binHz: AUDIO_RATE / (2 * (levels.value.length - 1)),
       color: token(color.value),
       marks: [
-        { hz: take.config.hpfHz, label: t.sliders.hpfHz.label },
-        { hz: take.config.lpfHz, label: t.sliders.lpfHz.label },
+        { hz: config.hpfHz, label: t.sliders.hpfHz.label },
+        { hz: config.lpfHz, label: t.sliders.lpfHz.label },
       ],
       format: t.hertz,
     });
@@ -84,6 +117,7 @@ useCanvas(
 );
 
 function onPointer(event: PointerEvent) {
+  if (isLive.value) return;
   const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
   const { from, to } = span.value;
   ui.cursorMs = (from + ((event.clientX - bounds.left) / bounds.width) * (to - from)) / SAMPLES_PER_MS;
@@ -97,12 +131,16 @@ function onPointer(event: PointerEvent) {
       <strong class="stage">{{ selected.name }}</strong>
       <span v-if="shownStage !== signal.stage" class="hint bypass">{{ t.bypassed(stageInfo(shownStage).name) }}</span>
       <span v-else class="hint about" :title="selected.about">{{ selected.about }}</span>
-      <UiBadge v-if="signal.take?.audio" :tone="signal.take.sent ? 'neutral' : 'accent'" :title="signal.take.sent ? undefined : t.previewNote" class="state">
+      <template v-if="isLive">
+        <UiSegmented v-model="liveWindow" :options="windows" :label="t.windowLabel" size="s" class="state" />
+        <UiBadge tone="ok" dot>{{ t.live }}</UiBadge>
+      </template>
+      <UiBadge v-else-if="signal.take?.audio" :tone="signal.take.sent ? 'neutral' : 'accent'" :title="signal.take.sent ? undefined : t.previewNote" class="state">
         {{ signal.take.sent ? t.sent : t.preview }}
       </UiBadge>
     </header>
 
-    <div v-show="tap" class="plots" :class="{ busy: signal.previewing }">
+    <div v-show="hasSignal" class="plots" :class="{ busy: signal.previewing && !isLive }">
       <div class="plot scope" @pointermove="onPointer" @pointerleave="ui.cursorMs = null">
         <canvas ref="scope" role="img" :aria-label="t.scope(selected.name)" />
       </div>
@@ -110,7 +148,7 @@ function onPointer(event: PointerEvent) {
         <canvas ref="spectrum" role="img" :aria-label="t.spectrum(selected.name)" />
       </div>
     </div>
-    <div v-if="!tap" class="empty">
+    <div v-if="!hasSignal" class="empty">
       <UiIcon name="activity" :size="24" />
       <p>{{ signal.take ? t.noTap : t.noTake }}</p>
     </div>
@@ -129,7 +167,7 @@ function onPointer(event: PointerEvent) {
   display: flex;
   flex: none;
   gap: var(--s2);
-  align-items: baseline;
+  align-items: center;
   min-height: 32px;
   padding: var(--s2) var(--s3) 0;
 }
@@ -154,7 +192,6 @@ function onPointer(event: PointerEvent) {
 }
 
 .state {
-  align-self: center;
   margin-left: auto;
 }
 

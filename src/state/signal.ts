@@ -42,4 +42,11 @@ export const signal = reactive({
   stage: "agc" as StageId,
   /** True while changed settings are being applied to the take. */
   previewing: false,
+
+  /** Pulses that began within the last second of what went out. */
+  pulseRate: 0,
+  /** The gain of the microphone chain's AGC. */
+  agcGain: 1,
+  /** The level at each of STAGES while the microphone is live, NaN where a filter is off. */
+  livePeaks: null as Float32Array | null,
 });

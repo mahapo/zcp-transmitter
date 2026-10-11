@@ -1,5 +1,6 @@
 // The chain runs in workers. One keeps the running chain for the microphone,
 // another renders whole utterances, so a long render never holds up live blocks.
+// A third follows the pulses that go out for the rolling waterfall.
 import type { DspAnswer, DspCall, DspReply, DspRequest } from "./protocol.ts";
 
 export class DspClient {
@@ -36,3 +37,5 @@ export class DspClient {
 
 export const liveDsp = new DspClient();
 export const renderDsp = new DspClient();
+/** Works out the rolling waterfall, so that neither of the others has to wait for it. */
+export const waterfallDsp = new DspClient();
