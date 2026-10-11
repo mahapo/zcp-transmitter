@@ -6,6 +6,10 @@ sends the pulse train. It is a port of a GNU Radio desktop app, and its chain re
 app's output: of the 74 configurations of the app's reference catalog, 56 come out bit for bit and
 the other 18 are identical until the speech has ended.
 
+**Try it: <https://mahapo.github.io/zcp-transmitter/>**
+
+![The console: source, the signal chain with its inspector, output, and the pulse waterfall below](docs/screenshots/console.png)
+
 Supported transmitters, all over WebUSB with nothing to install:
 
 | SDR | Driver | Status |
@@ -46,9 +50,13 @@ The console has three panels in the order the signal flows, and a dock below the
 - **Dock**: the pulse waterfall of the take (zoom, cursor, PNG, export as ZIP), live instruments
   (rolling waterfall, pulse spacing, duty cycle), and the history of what was played.
 
+![The light theme, with the signal after the low-pass in the inspector and the instruments in the dock](docs/screenshots/instruments-light.png)
+
 **Catalog Lab** is a second workspace: it runs the catalog's 74 configurations over one utterance,
 shows them side by side, compares any two pulse by pulse and exports them in the catalog's layout.
 Over the reference sample it checks each result against the hashes of GNU Radio's files.
+
+![The Catalog Lab: 74 configurations as waterfall thumbnails, two of them compared](docs/screenshots/catalog-lab.png)
 
 Press `?` for the keyboard shortcuts. None of them starts the transmitter.
 
@@ -128,8 +136,9 @@ frequency is accurate.
 
 ## Publishing on GitHub Pages
 
-`npm run build` writes a static site to `dist/` that works under any path, so it can be published
-as it is: push `dist/` to a `gh-pages` branch, or upload it with the Pages deploy action.
+Every push to `main` runs the tests, builds the site and publishes it:
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml). `npm run build` writes a static site
+to `dist/` that works under any path, so it can be hosted anywhere as it is.
 
 ## Adding an SDR
 
