@@ -3,12 +3,16 @@
 import { AMPLITUDE, AUDIO_RATE, CATALOG_RATE } from "./config.ts";
 
 export const FFT_SIZE = 64;
-const HOP = 32;
+/** IQ samples between frames. */
+export const HOP = 32;
 const MAX_SECONDS = 3;
 const MARGIN_SECONDS = 0.001; // kept around the active stretch
 const POWER_FLOOR = 1e-10;
+/** What a frame without any pulse shows. */
+export const SILENCE_DB = 10 * Math.log10(POWER_FLOOR);
 
-export interface Spectrogram {
+/** The part of a spectrogram that can cross to another thread. */
+export interface SpectrogramData {
   /** Sample rate of the analysed IQ signal. */
   sampleRate: number;
   /** First analysed IQ sample and how many follow. */
@@ -21,12 +25,15 @@ export interface Spectrogram {
   db: Float32Array;
   minDb: number;
   maxDb: number;
+}
+
+export interface Spectrogram extends SpectrogramData {
   /** |IQ| of sample `start + n`. */
   envelope(n: number): number;
 }
 
 /** In-place radix-2 FFT. */
-function fft(re: Float64Array, im: Float64Array) {
+export function fft(re: Float64Array, im: Float64Array) {
   const size = re.length;
   for (let i = 1, j = 0; i < size; i++) {
     let bit = size >> 1;
@@ -56,12 +63,45 @@ function fft(re: Float64Array, im: Float64Array) {
   }
 }
 
+/** numpy.hanning(FFT_SIZE). */
+export const HANN = Float64Array.from({ length: FFT_SIZE }, (_, n) => 0.5 - 0.5 * Math.cos((2 * Math.PI * n) / (FFT_SIZE - 1)));
+
+/** |IQ| of IQ sample `n` of a pulse train that is transmitted at `sampleRate`. */
+export function envelopeAt(pulses: Float32Array, n: number, sampleRate = CATALOG_RATE, pulseRate = AUDIO_RATE): number {
+  return pulses[Math.floor((n * pulseRate) / sampleRate)] > 0 ? AMPLITUDE : 0;
+}
+
+const re = new Float64Array(FFT_SIZE);
+const im = new Float64Array(FFT_SIZE);
+
 /**
- * The spectrogram of `pulses` as transmitted at `sampleRate`, trimmed to the
- * stretch that contains pulses and capped at three seconds. Undefined when
- * there is no pulse at all.
+ * The power spectrum in dB of the frame of FFT_SIZE samples that starts at
+ * `envelope(first)`. Writes its bins, negative frequencies first, to `db` from
+ * `offset` on and returns the largest. A frame without a pulse leaves `db`
+ * alone and returns undefined.
  */
-export function spectrogram(pulses: Float32Array, sampleRate = CATALOG_RATE, pulseRate = AUDIO_RATE): Spectrogram | undefined {
+export function frameDb(envelope: (n: number) => number, first: number, db: Float32Array, offset: number): number | undefined {
+  let active = false;
+  for (let n = 0; n < FFT_SIZE; n++) {
+    const value = envelope(first + n);
+    active ||= value > 0;
+    re[n] = value * HANN[n];
+    im[n] = 0;
+  }
+  if (!active) return undefined;
+  fft(re, im);
+  let max = -Infinity;
+  for (let bin = 0; bin < FFT_SIZE; bin++) {
+    const from = (bin + FFT_SIZE / 2) % FFT_SIZE; // fftshift: negative frequencies first
+    const value = 10 * Math.log10(re[from] ** 2 + im[from] ** 2 + POWER_FLOOR);
+    db[offset + bin] = value;
+    if (value > max) max = value;
+  }
+  return max;
+}
+
+/** `spectrogram` without the envelope, which `withEnvelope` adds again on the thread that draws. */
+export function analyse(pulses: Float32Array, sampleRate = CATALOG_RATE, pulseRate = AUDIO_RATE): SpectrogramData | undefined {
   const firstPulse = pulses.findIndex((value) => value > 0);
   if (firstPulse < 0) return undefined;
   const lastPulse = pulses.findLastIndex((value) => value > 0);
@@ -73,31 +113,28 @@ export function spectrogram(pulses: Float32Array, sampleRate = CATALOG_RATE, pul
   const frames = Math.floor((length - FFT_SIZE) / HOP);
   if (frames < 1) return undefined;
 
-  const envelope = (n: number) => (pulses[Math.floor(((start + n) * pulseRate) / sampleRate)] > 0 ? AMPLITUDE : 0);
-  const window = Float64Array.from({ length: FFT_SIZE }, (_, n) => 0.5 - 0.5 * Math.cos((2 * Math.PI * n) / (FFT_SIZE - 1)));
-  const silence = 10 * Math.log10(POWER_FLOOR);
-  const db = new Float32Array(frames * FFT_SIZE).fill(silence);
-  const re = new Float64Array(FFT_SIZE);
-  const im = new Float64Array(FFT_SIZE);
-  let maxDb = silence;
+  const envelope = (n: number) => envelopeAt(pulses, start + n, sampleRate, pulseRate);
+  const db = new Float32Array(frames * FFT_SIZE).fill(SILENCE_DB);
+  let maxDb = SILENCE_DB;
   for (let frame = 0; frame < frames; frame++) {
-    let active = false;
-    for (let n = 0; n < FFT_SIZE; n++) {
-      const value = envelope(frame * HOP + n);
-      active ||= value > 0;
-      re[n] = value * window[n];
-      im[n] = 0;
-    }
-    if (!active) continue;
-    fft(re, im);
-    for (let bin = 0; bin < FFT_SIZE; bin++) {
-      const from = (bin + FFT_SIZE / 2) % FFT_SIZE; // fftshift: negative frequencies first
-      const value = 10 * Math.log10(re[from] ** 2 + im[from] ** 2 + POWER_FLOOR);
-      db[frame * FFT_SIZE + bin] = value;
-      if (value > maxDb) maxDb = value;
-    }
+    const max = frameDb(envelope, frame * HOP, db, frame * FFT_SIZE);
+    if (max !== undefined && max > maxDb) maxDb = max;
   }
-  return { sampleRate, start, length, frames, hop: HOP, db, minDb: silence, maxDb, envelope };
+  return { sampleRate, start, length, frames, hop: HOP, db, minDb: SILENCE_DB, maxDb };
+}
+
+export function withEnvelope(data: SpectrogramData, pulses: Float32Array, pulseRate = AUDIO_RATE): Spectrogram {
+  return { ...data, envelope: (n) => envelopeAt(pulses, data.start + n, data.sampleRate, pulseRate) };
+}
+
+/**
+ * The spectrogram of `pulses` as transmitted at `sampleRate`, trimmed to the
+ * stretch that contains pulses and capped at three seconds. Undefined when
+ * there is no pulse at all.
+ */
+export function spectrogram(pulses: Float32Array, sampleRate = CATALOG_RATE, pulseRate = AUDIO_RATE): Spectrogram | undefined {
+  const data = analyse(pulses, sampleRate, pulseRate);
+  return data && withEnvelope(data, pulses, pulseRate);
 }
 
 // matplotlib's inferno, sampled at nine points.

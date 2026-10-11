@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { FILTERS, FILTER_GROUPS, type FilterKey, SLIDERS, appDefaults, canEnable, catalogBaseline, withFilter } from "../dsp/config.ts";
-import { state } from "../state.ts";
+import { session } from "../state/session.ts";
+import { signal } from "../state/signal.ts";
 import SegmentMeter from "./SegmentMeter.vue";
 
 const DUTY_FULL_SCALE = 0.1; // the meters top out at 10 %
@@ -17,11 +18,11 @@ const notes: Partial<Record<FilterKey, string>> = {
 };
 
 function toggle(key: FilterKey, event: Event) {
-  state.config.filters = withFilter(state.config.filters, key, (event.target as HTMLInputElement).checked);
+  session.config.filters = withFilter(session.config.filters, key, (event.target as HTMLInputElement).checked);
 }
 
 function blockedNote(key: FilterKey): string | undefined {
-  return canEnable(state.config.filters, key) ? notes[key] : "The three noise filters cannot all run at once.";
+  return canEnable(session.config.filters, key) ? notes[key] : "The three noise filters cannot all run at once.";
 }
 </script>
 
@@ -32,15 +33,15 @@ function blockedNote(key: FilterKey): string | undefined {
       <div class="controls">
         <label v-for="slider in sliders" :key="slider.key" class="slider">
           <span class="slider-name">{{ slider.label }}</span>
-          <input v-model.number="state.config[slider.key]" type="range" v-bind="SLIDERS[slider.key]" />
-          <output class="readout">{{ state.config[slider.key] }} {{ slider.unit }}</output>
+          <input v-model.number="session.config[slider.key]" type="range" v-bind="SLIDERS[slider.key]" />
+          <output class="readout">{{ session.config[slider.key] }} {{ slider.unit }}</output>
         </label>
 
         <p class="caption">
           Optional Filters
           <span class="links">
-            <button class="link" title="The app's starting point" @click="state.config = appDefaults()">Defaults</button>
-            <button class="link" title="The baseline of the reference catalog" @click="state.config = catalogBaseline()">All off</button>
+            <button class="link" title="The app's starting point" @click="session.config = appDefaults()">Defaults</button>
+            <button class="link" title="The baseline of the reference catalog" @click="session.config = catalogBaseline()">All off</button>
           </span>
         </p>
         <div class="filters">
@@ -49,8 +50,8 @@ function blockedNote(key: FilterKey): string | undefined {
             <label v-for="filter in FILTERS.filter((each) => each.group === group.id)" :key="filter.key" class="check" :title="blockedNote(filter.key)">
               <input
                 type="checkbox"
-                :checked="state.config.filters[filter.key]"
-                :disabled="!canEnable(state.config.filters, filter.key)"
+                :checked="session.config.filters[filter.key]"
+                :disabled="!canEnable(session.config.filters, filter.key)"
                 @change="toggle(filter.key, $event)"
               />
               {{ filter.label }}
@@ -59,17 +60,17 @@ function blockedNote(key: FilterKey): string | undefined {
         </div>
       </div>
 
-      <button class="duty" title="Click to reset the peak" @click="state.dutyPeak = 0">
+      <button class="duty" title="Click to reset the peak" @click="signal.dutyPeak = 0">
         <span class="duty-meters">
           <span class="duty-meter">
             <span class="duty-name">Live</span>
-            <output>{{ (100 * state.dutyLive).toFixed(1) }}%</output>
-            <SegmentMeter vertical :value="state.dutyLive / DUTY_FULL_SCALE" :segments="8" :zones="DUTY_ZONES" />
+            <output>{{ (100 * signal.dutyLive).toFixed(1) }}%</output>
+            <SegmentMeter vertical :value="signal.dutyLive / DUTY_FULL_SCALE" :segments="8" :zones="DUTY_ZONES" />
           </span>
           <span class="duty-meter">
             <span class="duty-name">Peak</span>
-            <output>{{ (100 * state.dutyPeak).toFixed(1) }}%</output>
-            <SegmentMeter vertical :value="state.dutyPeak / DUTY_FULL_SCALE" :segments="8" :zones="DUTY_ZONES" />
+            <output>{{ (100 * signal.dutyPeak).toFixed(1) }}%</output>
+            <SegmentMeter vertical :value="signal.dutyPeak / DUTY_FULL_SCALE" :segments="8" :zones="DUTY_ZONES" />
           </span>
         </span>
         <span class="duty-caption">Duty Cycle</span>
