@@ -18,7 +18,7 @@ const kept = load(STORAGE_KEY, {
   dockHeight: 260,
   makeSpectrogram: true,
   chainView: "flow" as "flow" | "list",
-  dockTab: "waterfall" as "waterfall" | "instruments",
+  dockTab: "waterfall" as "waterfall" | "instruments" | "history",
   /** What the monitor plays: the input, the stage in view or the pulses. */
   monitorSource: "input" as "input" | "tap" | "pulses",
   monitorVolume: 0.5,

@@ -5,6 +5,7 @@ import { signal } from "../../state/signal.ts";
 import { ui } from "../../state/ui.ts";
 import { text } from "../../text.ts";
 import UiSegmented from "../primitives/UiSegmented.vue";
+import HistoryView from "./HistoryView.vue";
 import InstrumentsView from "./InstrumentsView.vue";
 import WaterfallView from "./WaterfallView.vue";
 
@@ -14,6 +15,7 @@ const t = text.dock;
 const tabs = [
   { value: "waterfall" as const, label: t.waterfall, icon: "activity" as const },
   { value: "instruments" as const, label: text.instruments.tab, icon: "sliders" as const },
+  { value: "history" as const, label: text.history.tab, icon: "history" as const },
 ];
 
 // The waterfall shows a finished take; with the microphone on, the instruments are where things happen.
@@ -63,7 +65,8 @@ function drag(event: PointerEvent) {
     </header>
     <div class="body">
       <WaterfallView v-if="ui.dockTab === 'waterfall'" />
-      <InstrumentsView v-else />
+      <InstrumentsView v-else-if="ui.dockTab === 'instruments'" />
+      <HistoryView v-else />
     </div>
   </section>
 </template>

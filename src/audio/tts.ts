@@ -4,17 +4,7 @@
 import wasmUrl from "espeak-ng/dist/espeak-ng.wasm?url";
 import { type Audio, decodeWav } from "../dsp/wav.ts";
 
-export const MAX_TEXT_LENGTH = 140;
-
-/** A few of eSpeak's voices; any name `espeak-ng --voices` lists works. */
-export const VOICES = [
-  { id: "en-us", label: "English (US)" },
-  { id: "en-gb", label: "English (UK)" },
-  { id: "de", label: "Deutsch" },
-  { id: "fr", label: "Français" },
-  { id: "it", label: "Italiano" },
-  { id: "es", label: "Español" },
-];
+export { MAX_TEXT_LENGTH, VOICES } from "./voices.ts";
 
 const PITCH = "20";
 const WORDS_PER_MINUTE = "130";

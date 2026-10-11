@@ -10,6 +10,7 @@ import { signal } from "../state/signal.ts";
 import { text } from "../text.ts";
 import { liveDsp } from "./dspClient.ts";
 import { feedLive, resetLive } from "./instruments.ts";
+import { audioFromHistory, remember } from "./library.ts";
 import { monitorLive } from "./monitor.ts";
 import { emit, queue } from "./pulses.ts";
 import { fail, say } from "./status.ts";
@@ -23,7 +24,19 @@ async function play(audio: Float32Array, title: string) {
   take.sent = true;
   emit(take.pulses, take.pulseCount);
   showTake(take);
+  void remember(take);
   say(text.status.played(title, audio.length / AUDIO_RATE, take.pulseCount, take.duty));
+}
+
+/** Plays a take from the history again, with the settings it was made with. */
+export async function playFromHistory(id: number) {
+  const recalled = await audioFromHistory(id);
+  if (!recalled) return;
+  try {
+    await play(recalled.audio, recalled.title);
+  } catch (error) {
+    fail(error);
+  }
 }
 
 export async function generateVoice() {

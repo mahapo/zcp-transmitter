@@ -2,18 +2,19 @@
 // The pulse waterfall of the latest utterance or recording: spectrogram on top,
 // |IQ| below, scrollable when zoomed in.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { fail } from "../../engine/status.ts";
 import { download, fileStamp } from "../../lib/download.ts";
 import { signal } from "../../state/signal.ts";
 import { WATERFALL_ZOOMS, ui } from "../../state/ui.ts";
 import { text } from "../../text.ts";
 import { themeRevision, token } from "../canvas/theme.ts";
-import { CATALOG_LOOK, IMAGE_SHARE, type WaterfallLook, paintWaterfall } from "../canvas/waterfallPaint.ts";
+import { IMAGE_SHARE, type WaterfallLook, paintWaterfall } from "../canvas/waterfallPaint.ts";
+import { waterfallPng } from "../canvas/waterfallPng.ts";
 import UiButton from "../primitives/UiButton.vue";
 import UiIcon from "../primitives/UiIcon.vue";
 import UiSelect from "../primitives/UiSelect.vue";
+import ExportDialog from "../session/ExportDialog.vue";
 
-// The reference PNGs are 40 px per ms and at least 1500 px wide; a canvas cannot be much wider than this.
-const PNG = { pxPerMs: 40, minWidth: 1500, maxWidth: 16000, height: 900 };
 const t = text.dock;
 
 const pxPerMs = computed({ get: () => ui.waterfallZoom, set: (value) => (ui.waterfallZoom = value) });
@@ -23,6 +24,7 @@ const canvas = ref<HTMLCanvasElement>();
 const view = ref({ width: 0, height: 0 });
 /** The frequency offset under the pointer, when it is over the spectrogram. */
 const pointerMhz = ref<number>();
+const exporting = ref(false);
 
 const shown = computed(() => (signal.take?.spectrogram ? { title: signal.take.title, data: signal.take.spectrogram } : null));
 const durationMs = computed(() => (shown.value ? (shown.value.data.length / shown.value.data.sampleRate) * 1000 : 0));
@@ -76,15 +78,14 @@ const cursor = computed(() => {
   return { x: share * view.value.width, label };
 });
 
-function savePng() {
+async function savePng() {
   if (!shown.value) return;
   const { title, data } = shown.value;
-  const target = document.createElement("canvas");
-  target.width = Math.min(PNG.maxWidth, Math.max(PNG.minWidth, Math.round(durationMs.value * PNG.pxPerMs)));
-  target.height = PNG.height;
-  paintWaterfall(target, data, 0, data.length, CATALOG_LOOK, summary.value);
-  const name = title.endsWith(".iq") ? title.replace(/\.iq$/, ".png") : `zcp_${fileStamp()}.png`;
-  target.toBlob((blob) => blob && download(blob, name));
+  try {
+    download(await waterfallPng(data, summary.value), title.endsWith(".iq") ? title.replace(/\.iq$/, ".png") : `zcp_${fileStamp()}.png`);
+  } catch (error) {
+    fail(error);
+  }
 }
 
 /** Where the monitor is playing, as a position in this view. */
@@ -134,7 +135,9 @@ watch([pxPerMs, themeRevision], draw, { flush: "post" });
       <option v-for="each in WATERFALL_ZOOMS" :key="each" :value="String(each)">{{ each ? t.pxPerMs(each) : t.fit }}</option>
     </UiSelect>
     <UiButton size="s" icon="image" :disabled="!shown" @click="savePng">{{ t.savePng }}</UiButton>
+    <UiButton size="s" icon="archive" :disabled="!signal.take" @click="exporting = true">{{ text.exporting.button }}</UiButton>
   </Teleport>
+  <ExportDialog :open="exporting" :caption="summary" @close="exporting = false" />
 
   <div v-show="shown" class="frame" @pointermove="onPointer" @pointerleave="onLeave">
     <div ref="scroller" class="scroller" @scroll="draw">

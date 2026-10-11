@@ -86,6 +86,34 @@ export function withFilter(filters: Filters, key: FilterKey, on: boolean): Filte
   return next;
 }
 
+/**
+ * Filters from anywhere (a link, a stored preset) with the rules applied: of
+ * two that exclude each other the one later in FILTERS stays, and a third
+ * noise filter is left off.
+ */
+export function normalizeFilters(filters: Partial<Record<FilterKey, unknown>>): Filters {
+  let result = noFilters();
+  for (const { key } of FILTERS) if (filters[key] === true) result = withFilter(result, key, true);
+  return result;
+}
+
+/** A slider value brought into its range and onto its steps; anything that is not a number becomes the default. */
+function snap(key: keyof typeof SLIDERS, value: unknown): number {
+  const { min, max, step } = SLIDERS[key];
+  if (typeof value !== "number" || !Number.isFinite(value)) return catalogBaseline()[key];
+  return Math.max(min, Math.min(max, min + Math.round((value - min) / step) * step));
+}
+
+/** Settings from anywhere, made valid: see normalizeFilters, and the sliders snapped to SLIDERS. */
+export function normalizeConfig(config: { filters?: Partial<Record<FilterKey, unknown>>; pulseUs?: unknown; hpfHz?: unknown; lpfHz?: unknown }): ChainConfig {
+  return {
+    filters: normalizeFilters(config.filters ?? {}),
+    pulseUs: snap("pulseUs", config.pulseUs),
+    hpfHz: snap("hpfHz", config.hpfHz),
+    lpfHz: snap("lpfHz", config.lpfHz),
+  };
+}
+
 /** The catalog file name for a set of filters, e.g. "notch+decimate". */
 export function catalogLabel(filters: Filters): string {
   const on = FILTERS.filter(({ key }) => filters[key]).map(({ catalog }) => catalog);

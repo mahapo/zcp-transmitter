@@ -10,6 +10,7 @@ import UiButton from "../primitives/UiButton.vue";
 import UiPanel from "../primitives/UiPanel.vue";
 import UiSegmented from "../primitives/UiSegmented.vue";
 import UiSlider from "../primitives/UiSlider.vue";
+import PresetsMenu from "../session/PresetsMenu.vue";
 import DutyMeters from "./DutyMeters.vue";
 import FilterList from "./FilterList.vue";
 import Flowgraph from "./Flowgraph.vue";
@@ -26,6 +27,7 @@ const views = [
 <template>
   <UiPanel :title="t.panel">
     <template #actions>
+      <PresetsMenu />
       <UiButton size="s" variant="ghost" :title="t.defaultsNote" @click="resetToDefaults">{{ t.defaults }}</UiButton>
       <UiButton size="s" variant="ghost" :title="t.allOffNote" @click="allFiltersOff">{{ t.allOff }}</UiButton>
       <UiSegmented v-model="ui.chainView" :options="views" :label="t.view" size="s" />
