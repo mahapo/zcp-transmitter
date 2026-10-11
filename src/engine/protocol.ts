@@ -1,4 +1,5 @@
 // What the main thread and a DSP worker say to each other.
+import type { Match, ReferenceEntry } from "../catalog/reference.ts";
 import type { StageId } from "../dsp/chain.ts";
 import type { ChainConfig } from "../dsp/config.ts";
 import type { SpectrogramData } from "../dsp/spectrogram.ts";
@@ -41,7 +42,23 @@ export interface WaterfallRequest {
   pulses: Float32Array;
 }
 
-export type DspRequest = RenderRequest | LiveRequest | SpectrogramRequest | WaterfallRequest;
+/** The utterance the Catalog Lab's jobs on this worker run over. */
+export interface LabAudioRequest {
+  kind: "labAudio";
+  audio: Float32Array;
+}
+
+/** One configuration of the Catalog Lab over that utterance. */
+export interface LabRequest {
+  kind: "lab";
+  config: ChainConfig;
+  /** The width of the thumbnail, in columns. */
+  columns: number;
+  /** What the catalog holds for this configuration, to compare with. */
+  reference?: ReferenceEntry;
+}
+
+export type DspRequest = RenderRequest | LiveRequest | SpectrogramRequest | WaterfallRequest | LabAudioRequest | LabRequest;
 
 export interface PulsesReply {
   pulses: Float32Array;
@@ -73,7 +90,25 @@ export interface WaterfallReply {
   columns: Uint8Array;
 }
 
-export type DspReply<R extends DspRequest> = R extends RenderRequest
+export interface LabReply {
+  /** Zero crossings that triggered a pulse. */
+  pulseCount: number;
+  duty: number;
+  /** Samples of the input that have no counterpart in the pulse train, see ZcpChain's #skip. */
+  skipped: number;
+  /** The pulse train on the input's time axis, see pulseEdges in dsp/analysis.ts. */
+  edges: Uint32Array;
+  /** The waterfall over the whole input: `columns` columns of FFT_SIZE levels, see levelByte. */
+  thumb: Uint8Array;
+  columns: number;
+  match?: Match;
+}
+
+export type DspReply<R extends DspRequest> = R extends LabRequest
+  ? LabReply
+  : R extends LabAudioRequest
+    ? Record<string, never>
+    : R extends RenderRequest
   ? RenderReply
   : R extends LiveRequest
     ? LiveReply

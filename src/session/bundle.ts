@@ -35,7 +35,7 @@ export interface BundleSource {
 export function bundleEntries(source: BundleSource, parts: BundleParts): ZipEntry[] {
   const { name, config, pulses } = source;
   const entries: ZipEntry[] = [];
-  if (parts.iq) entries.push({ path: `${name}.iq`, data: catalogIq(pulses) });
+  if (parts.iq) entries.push({ path: `${name}.iq`, data: () => catalogIq(pulses) });
   if (parts.sigmf) {
     const meta = sigmfMeta({ dataset: `${name}.iq`, config, title: source.title, pulses: source.pulseCount, dutyCycle: source.duty, carrierHz: source.carrierHz, created: source.created });
     entries.push({ path: `${name}.sigmf-meta`, data: [new TextEncoder().encode(meta)] });

@@ -36,6 +36,7 @@ export const ui = reactive({
   /** Errors, shown until dismissed or timed out. */
   toasts: [] as Toast[],
   shortcutsOpen: false,
+  workspace: "console" as "console" | "lab",
 
   /** Waterfall zoom in px per ms; 0 fits everything. The steps are WATERFALL_ZOOMS. */
   waterfallZoom: 0,

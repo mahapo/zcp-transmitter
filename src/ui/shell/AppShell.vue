@@ -1,8 +1,12 @@
 <script setup lang="ts">
 // The console: a status bar, three panels in the order the signal flows, and the dock below them.
 import ChainPanel from "../chain/ChainPanel.vue";
+import { ui } from "../../state/ui.ts";
+import { text } from "../../text.ts";
 import Dock from "../dock/Dock.vue";
+import LabWorkspace from "../lab/LabWorkspace.vue";
 import OutputPanel from "../output/OutputPanel.vue";
+import UiSegmented from "../primitives/UiSegmented.vue";
 import { useShortcuts } from "../shortcuts.ts";
 import SourcePanel from "../source/SourcePanel.vue";
 import ShortcutsDialog from "./ShortcutsDialog.vue";
@@ -11,17 +15,25 @@ import Toasts from "./Toasts.vue";
 import TopBar from "./TopBar.vue";
 
 useShortcuts();
+
+const workspaces = [
+  { value: "console" as const, label: text.lab.console, icon: "sliders" as const },
+  { value: "lab" as const, label: text.lab.name, icon: "flask" as const },
+];
 </script>
 
 <template>
   <div class="shell">
-    <TopBar />
-    <main class="console">
+    <TopBar>
+      <UiSegmented v-model="ui.workspace" :options="workspaces" :label="text.lab.workspace" />
+    </TopBar>
+    <main v-show="ui.workspace === 'console'" class="console">
       <SourcePanel class="at-source" />
       <ChainPanel class="at-chain" />
       <OutputPanel class="at-output" />
       <Dock class="at-dock" />
     </main>
+    <LabWorkspace v-if="ui.workspace === 'lab'" />
     <StatusLine />
     <Toasts />
     <ShortcutsDialog />

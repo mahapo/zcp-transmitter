@@ -2,11 +2,16 @@
 // zeros and shrink several hundred times, so everything is deflated unless an
 // entry says it is compressed already.
 
+type Pieces = (Uint8Array | Float32Array)[];
+
 export interface ZipEntry {
   /** Path inside the archive, with forward slashes. */
   path: string;
-  /** The file's bytes, in as many pieces as is convenient. */
-  data: (Uint8Array | Float32Array)[];
+  /**
+   * The file's bytes, in as many pieces as is convenient. A function is called
+   * when the entry's turn comes, so that large files need not all exist at once.
+   */
+  data: Pieces | (() => Pieces | Promise<Pieces>);
   /** Keep the bytes as they are, for formats that are compressed already (PNG). */
   store?: boolean;
 }
@@ -47,15 +52,17 @@ function dosStamp(date: Date): { time: number; day: number } {
   };
 }
 
-export async function zip(entries: ZipEntry[], date = new Date()): Promise<Blob> {
+/** `onEntry` is told how many entries are packed, before each one and once at the end. */
+export async function zip(entries: ZipEntry[], date = new Date(), onEntry?: (packed: number) => void): Promise<Blob> {
   if (entries.length > MAX_ENTRIES) throw new Error("too many files for one ZIP archive");
   const { time, day } = dosStamp(date);
   const parts: Uint8Array[] = [];
   const directory: Uint8Array[] = [];
   let offset = 0;
 
-  for (const entry of entries) {
-    const pieces = entry.data.map(bytesOf);
+  for (const [index, entry] of entries.entries()) {
+    onEntry?.(index);
+    const pieces = (typeof entry.data === "function" ? await entry.data() : entry.data).map(bytesOf);
     const size = pieces.reduce((sum, piece) => sum + piece.length, 0);
     const crc = pieces.reduce((value, piece) => crc32(piece, value), 0);
     const packed = entry.store ? pieces : [await deflate(pieces)];
@@ -94,6 +101,7 @@ export async function zip(entries: ZipEntry[], date = new Date()): Promise<Blob>
     offset += local.length + packedSize;
   }
 
+  onEntry?.(entries.length);
   const directorySize = directory.reduce((sum, piece) => sum + piece.length, 0);
   const end = new DataView(new ArrayBuffer(22));
   end.setUint32(0, 0x06054b50, true);

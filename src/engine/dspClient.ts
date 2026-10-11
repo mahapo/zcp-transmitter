@@ -33,6 +33,14 @@ export class DspClient {
       this.#worker!.postMessage(call, transfer);
     });
   }
+
+  /** Stops the worker at once. Calls that are still waiting fail. */
+  terminate() {
+    this.#worker?.terminate();
+    this.#worker = undefined;
+    for (const { reject } of this.#waiting.values()) reject(new Error("cancelled"));
+    this.#waiting.clear();
+  }
 }
 
 export const liveDsp = new DspClient();

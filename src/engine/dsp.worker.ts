@@ -1,13 +1,17 @@
 // Runs the chain off the main thread: whole utterances through a fresh chain,
 // microphone blocks through one that keeps running.
-import { type ChainProbe, STAGES, type StageId, ZcpChain } from "../dsp/chain.ts";
-import { FFT_SIZE, analyse } from "../dsp/spectrogram.ts";
+import { matchReference } from "../catalog/reference.ts";
+import { pulseEdges } from "../dsp/analysis.ts";
+import { type ChainProbe, STAGES, type StageId, ZcpChain, dutyCycle } from "../dsp/chain.ts";
+import { AUDIO_RATE, CATALOG_RATE } from "../dsp/config.ts";
+import { FFT_SIZE, HOP, analyse } from "../dsp/spectrogram.ts";
 import { ROLLING_FRAMES_PER_COLUMN, RollingWaterfall, levelByte } from "../dsp/waterfall.ts";
-import type { DspAnswer, DspCall, DspReply, DspRequest, LiveReply, LiveRequest, RenderReply, RenderRequest, Tap, WaterfallReply } from "./protocol.ts";
+import type { DspAnswer, DspCall, DspReply, DspRequest, LabReply, LabRequest, LiveReply, LiveRequest, RenderReply, RenderRequest, Tap, WaterfallReply } from "./protocol.ts";
 
 let live: ZcpChain | undefined;
 let rolling: RollingWaterfall | undefined;
 let rolled: number[] = [];
+let labAudio: Float32Array = new Float32Array(0);
 
 /** A probe that measures every stage's peak and keeps the stages in `wanted`. */
 function watch(wanted: "all" | StageId[] = []) {
@@ -53,10 +57,41 @@ function roll(pulses: Float32Array): WaterfallReply {
   return { columns: Uint8Array.from(rolled) };
 }
 
-function answer(request: DspRequest): DspReply<DspRequest> {
+/** One catalog configuration over the lab's utterance: its pulses, a thumbnail and how it compares with the catalog. */
+async function lab({ config, columns, reference }: LabRequest): Promise<LabReply> {
+  const chain = new ZcpChain(config);
+  const pulses = chain.process(labAudio);
+  const skipped = labAudio.length - pulses.length;
+  // On the input's time axis, so that every configuration lines up with every other.
+  const timed = new Float32Array(labAudio.length);
+  timed.set(pulses, skipped);
+
+  const frames = Math.floor((Math.ceil((timed.length * CATALOG_RATE) / AUDIO_RATE) - FFT_SIZE) / HOP) + 1;
+  const levels: number[] = [];
+  new RollingWaterfall(Math.max(1, Math.ceil(frames / columns)), (db) => {
+    for (let bin = 0; bin < FFT_SIZE; bin++) levels.push(levelByte(db[bin]));
+  }).push(timed);
+
+  return {
+    pulseCount: chain.pulseCount,
+    duty: dutyCycle(pulses),
+    skipped,
+    edges: pulseEdges(timed),
+    thumb: Uint8Array.from(levels),
+    columns: levels.length / FFT_SIZE,
+    match: reference && (await matchReference(pulses, reference)),
+  };
+}
+
+function answer(request: DspRequest): DspReply<DspRequest> | Promise<DspReply<DspRequest>> {
   if (request.kind === "render") return render(request);
   if (request.kind === "live") return next(request);
   if (request.kind === "waterfall") return roll(request.pulses);
+  if (request.kind === "lab") return lab(request);
+  if (request.kind === "labAudio") {
+    labAudio = request.audio;
+    return {};
+  }
   return { spectrogram: analyse(request.pulses) ?? null };
 }
 
@@ -68,14 +103,15 @@ function buffers(reply: DspReply<DspRequest>): Transferable[] {
   if ("tap" in reply && reply.tap) found.push(reply.tap.samples.buffer);
   if ("agcGain" in reply && reply.agcGain instanceof Float32Array) found.push(reply.agcGain.buffer);
   if ("spectrogram" in reply && reply.spectrogram) found.push(reply.spectrogram.db.buffer);
-  if ("columns" in reply) found.push(reply.columns.buffer);
+  if ("columns" in reply && reply.columns instanceof Uint8Array) found.push(reply.columns.buffer);
+  if ("thumb" in reply) found.push(reply.thumb.buffer, reply.edges.buffer);
   return found;
 }
 
-addEventListener("message", ({ data: { id, request } }: MessageEvent<DspCall>) => {
+addEventListener("message", async ({ data: { id, request } }: MessageEvent<DspCall>) => {
   let result: DspAnswer;
   try {
-    result = { id, reply: answer(request) };
+    result = { id, reply: await answer(request) };
   } catch (error) {
     result = { id, error: error instanceof Error ? error.message : String(error) };
   }

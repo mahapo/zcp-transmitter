@@ -97,3 +97,28 @@ export class OnsetTracker {
     return found;
   }
 }
+
+/**
+ * A pulse train as the positions at which it switches: on at edges[0], off at
+ * edges[1], on at edges[2] and so on. A fraction of the size of the train.
+ */
+export function pulseEdges(pulses: Float32Array): Uint32Array {
+  const edges: number[] = [];
+  let on = false;
+  for (let n = 0; n < pulses.length; n++) {
+    if (pulses[n] > 0 !== on) {
+      edges.push(n);
+      on = !on;
+    }
+  }
+  return Uint32Array.from(edges);
+}
+
+/** The pulse train of `length` samples that `edges` describe, moved `shift` samples earlier. */
+export function pulsesFromEdges(edges: Uint32Array, length: number, shift = 0): Float32Array {
+  const pulses = new Float32Array(length);
+  for (let n = 0; n < edges.length; n += 2) {
+    pulses.fill(1, Math.max(0, edges[n] - shift), Math.max(0, Math.min(length, (edges[n + 1] ?? length + shift) - shift)));
+  }
+  return pulses;
+}
