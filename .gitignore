@@ -1,8 +1,9 @@
 node_modules/
-dist/
-output/
+/dist/
+# Recordings saved next to the project. Only at the top: src/ui/output is source.
+/output/
 .DS_Store
 
 # The Python reference this app was ported from. It is not part of this repository;
 # src/catalog/reference.json holds what the tests need of it.
-Combination_Catalog/
+/Combination_Catalog/
