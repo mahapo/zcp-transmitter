@@ -28,6 +28,43 @@ const AGC_MAX_GAIN = 65536;
 
 const { fround } = Math;
 
+/** Where the signal can be watched, in the order the chain runs. An optional filter's stage is named like its FilterKey. */
+export const STAGES = [
+  "input",
+  "dcBlocker",
+  "notch",
+  "hpf",
+  "lpf",
+  "f1Bandpass",
+  "fricative",
+  "preEmphasis",
+  "agc",
+  "noiseGate",
+  "envelopeFollower",
+  "spectralSub",
+  "decimate",
+  "halfWave",
+  "schmitt",
+  "hilbert",
+  "pulse",
+] as const;
+
+export type StageId = (typeof STAGES)[number];
+
+/** Watches a chain at work. It is handed copies, so it cannot alter the signal. */
+export interface ChainProbe {
+  /** Whether to report a stage; all of them when absent. */
+  wants?(stage: StageId): boolean;
+  /**
+   * The output of a stage that ran; a filter that is off reports nothing.
+   * `skipped` is how many samples from the start of this block's input have no
+   * counterpart in `samples`, see ZcpChain's #skip.
+   */
+  stage(stage: StageId, samples: Float32Array, skipped: number): void;
+  /** The gain the AGC applied to each of its samples. */
+  agcGain?(gain: Float32Array): void;
+}
+
 export class ZcpChain {
   #config: ChainConfig;
   #dcBlocker = new DcBlocker();
@@ -74,6 +111,11 @@ export class ZcpChain {
     return this.#pulse.count;
   }
 
+  /** The gain the AGC will apply to the next sample. */
+  get agcGain(): number {
+    return this.#agcGain;
+  }
+
   /** Changes the settings of a running chain. */
   setConfig(config: ChainConfig) {
     const previous = this.#config;
@@ -103,40 +145,63 @@ export class ZcpChain {
   /**
    * Runs `audio` (mono, -1..1) through the chain and returns the pulse train:
    * 1 during a pulse, else 0. It is as long as the audio, minus what #skip drops.
+   * A `probe` sees every stage along the way without changing the result.
    */
-  process(audio: Float32Array): Float32Array {
+  process(audio: Float32Array, probe?: ChainProbe): Float32Array {
     const { filters } = this.#config;
     let samples: Float32Array = audio.slice();
+    const tap = (stage: StageId, ran = true) => {
+      if (probe && ran && (probe.wants?.(stage) ?? true)) probe.stage(stage, samples.slice(), audio.length - samples.length);
+    };
 
+    tap("input");
     this.#dcBlocker.process(samples);
+    tap("dcBlocker");
     if (filters.notch) this.#notch.process(samples);
+    tap("notch", filters.notch);
     this.#hpf.process(samples);
+    tap("hpf");
     this.#lpf.process(samples);
+    tap("lpf");
     this.#f1.process(samples, !filters.f1Bandpass);
     if (this.#f1Skip > 0) {
       const kept = this.#skip(samples, this.#f1Skip);
       this.#f1Skip -= samples.length - kept.length;
       samples = kept;
     }
+    tap("f1Bandpass", filters.f1Bandpass);
     if (filters.fricative) this.#fricative.process(samples);
+    tap("fricative", filters.fricative);
     this.#preEmphasis(samples, filters.preEmphasis);
     if (this.#preEmphasisSkip > 0) {
       const kept = this.#skip(samples, this.#preEmphasisSkip);
       this.#preEmphasisSkip -= samples.length - kept.length;
       samples = kept;
     }
+    tap("preEmphasis", filters.preEmphasis);
     // De-emphasis does nothing here, as in the reference: GNU Radio's old-style
     // IIR ignores the single feedback tap the app gives it, and the catalog's
     // de_emph files are identical to the ones without it.
-    this.#agc(samples);
+    const gainTrace = probe?.agcGain ? new Float32Array(samples.length) : undefined;
+    this.#agc(samples, gainTrace);
+    if (gainTrace) probe?.agcGain?.(gainTrace);
+    tap("agc");
     if (filters.noiseGate) this.#noiseGate.process(samples);
+    tap("noiseGate", filters.noiseGate);
     if (filters.envelopeFollower) this.#envelopeFollower.process(samples);
+    tap("envelopeFollower", filters.envelopeFollower);
     if (filters.spectralSub) this.#spectralSub.process(samples);
+    tap("spectralSub", filters.spectralSub);
     if (filters.decimate) this.#decimator.process(samples);
+    tap("decimate", filters.decimate);
     if (filters.halfWave) halfWaveRectify(samples);
+    tap("halfWave", filters.halfWave);
     if (filters.schmitt) this.#schmitt.process(samples);
+    tap("schmitt", filters.schmitt);
     if (filters.hilbert) this.#hilbert.process(samples);
+    tap("hilbert", filters.hilbert);
     this.#pulse.process(samples);
+    tap("pulse");
     return samples.slice();
   }
 
@@ -151,10 +216,11 @@ export class ZcpChain {
     this.#preEmphasisLast = last;
   }
 
-  /** GNU Radio's agc_ff, in single precision like the original. */
-  #agc(samples: Float32Array) {
+  /** GNU Radio's agc_ff, in single precision like the original. `trace` receives the gain of every sample. */
+  #agc(samples: Float32Array, trace?: Float32Array) {
     let gain = this.#agcGain;
     for (let i = 0; i < samples.length; i++) {
+      if (trace) trace[i] = gain;
       const out = fround(samples[i] * gain);
       samples[i] = out;
       gain = fround(gain + fround(fround(AGC_REFERENCE - Math.abs(out)) * AGC_RATE));
