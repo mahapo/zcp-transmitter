@@ -68,10 +68,10 @@ const workspaces = [
   }
 }
 
-/* Source over output in a rail, the chain beside them. */
+/* Source over output in a rail, the chain beside them. Every panel is as tall as it needs and the page scrolls. */
 @media (max-width: 1099px) {
   .console {
-    grid-template-rows: auto auto auto;
+    grid-template-rows: max-content max-content auto;
     grid-template-columns: 300px minmax(0, 1fr);
   }
 
@@ -94,7 +94,9 @@ const workspaces = [
 /* One column, in the order the signal flows. */
 @media (max-width: 759px) {
   .console {
+    grid-template-rows: none;
     grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
   }
 
   .at-source,

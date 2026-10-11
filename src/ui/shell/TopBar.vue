@@ -190,6 +190,22 @@ h1 {
   }
 }
 
+/* Too narrow for one line: the radio's state moves below the workspaces. */
+@media (max-width: 680px) {
+  .bar {
+    flex-wrap: wrap;
+    gap: var(--s2) var(--s3);
+    height: auto;
+    padding-block: var(--s2);
+  }
+
+  .radio {
+    flex: 1 0 100%;
+    order: 1;
+    justify-content: space-between;
+  }
+}
+
 @media (max-width: 520px) {
   .frequency {
     font-size: var(--text-l);
