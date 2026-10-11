@@ -43,7 +43,7 @@ function open() {
       </span>
     </button>
     <footer class="foot">
-      <UiBadge v-if="sameAs" :title="t.sameNote">{{ t.sameAs(sameAs) }}</UiBadge>
+      <UiBadge v-if="sameAs" class="same" :title="`${t.sameAs(sameAs)}. ${t.sameNote}`">{{ t.sameAs(sameAs) }}</UiBadge>
       <UiBadge v-else-if="result?.match === 'identical'" tone="ok" :title="t.identicalNote"><UiIcon name="check" :size="12" />{{ t.identical }}</UiBadge>
       <UiBadge v-else-if="result?.match === 'speech'" tone="accent" :title="t.speechNote">{{ t.speech }}</UiBadge>
       <UiBadge v-else-if="result?.match === 'different'" tone="danger" :title="t.differentNote">{{ t.different }}</UiBadge>
@@ -144,7 +144,13 @@ function open() {
 
 .foot .badge {
   min-width: 0;
+}
+
+/* A block, so that a name too long for the tile ends in an ellipsis. */
+.foot .same {
+  display: block;
   overflow: hidden;
+  line-height: 18px;
   text-overflow: ellipsis;
 }
 

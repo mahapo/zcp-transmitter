@@ -10,7 +10,7 @@ Supported transmitters, all over WebUSB with nothing to install:
 
 | SDR | Driver | Status |
 |---|---|---|
-| PlutoSDR and compatibles (HamGeek, LibreSDR, Pluto+) | [`src/sdr/pluto.ts`](src/sdr/pluto.ts) | USB link tested on a HamGeek; transmitting and the receive monitor not yet |
+| PlutoSDR and compatibles (HamGeek, LibreSDR, Pluto+) | [`src/sdr/pluto.ts`](src/sdr/pluto.ts) | on a HamGeek: USB link tested, receiving tested over the network (`cli/monitor.ts`); transmitting and the receive monitor in the browser not yet |
 | HackRF One | [`src/sdr/hackrf.ts`](src/sdr/hackrf.ts) | written to libhackrf's protocol, untested on hardware |
 | none | Record IQ | saves complex64 at 2 MS/s, the catalog's format |
 
